@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const targetUserName = "Mira";
+const targetUserName = "小满";
 
 const floatingClaws = [
   { name: "Alex", emoji: "😼", color: "from-[#6ed6ff] to-[#12a4ff]", top: "12%", left: "10%", delay: "0s", duration: "6s" },
@@ -15,14 +15,14 @@ const floatingClaws = [
 ];
 
 const logLines = [
-  "Your Claw is chatting with Alex's Claw...",
-  "Your Claw cracked a joke...",
-  "Analyzing compatibility...",
-  "Meme exchange successful...",
-  "Shared food opinions detected...",
-  "Mutual night-owl energy rising...",
-  "Comparing chaotic-good tendencies...",
-  "Tiny sparks spotted in the server room...",
+  "你的claw正在和 Alex 的claw聊天...",
+  "你的claw突然抖了个机灵...",
+  "正在分析匹配度...",
+  "表情包交换成功...",
+  "检测到相似的食物偏好...",
+  "深夜活跃属性同步上升...",
+  "正在比对混乱善良指数...",
+  "服务器角落里冒出一点点火花...",
 ];
 
 function FloatingAvatar({ avatar }) {
@@ -43,7 +43,7 @@ function FloatingAvatar({ avatar }) {
             <div>
               <p className="text-sm font-black text-slate-900">{avatar.name}</p>
               <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
-                Claw Online
+                claw在线
               </p>
             </div>
           </div>
@@ -88,24 +88,23 @@ export default function MixerPage() {
           <div className="relative z-10 flex items-center justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-cyan-100/80">
-                Cyber Mixer
+                赛博酒会
               </p>
               <h1 className="mt-2 text-3xl font-black leading-none">
-                Claws In Orbit
+                claw社交中
               </h1>
             </div>
             <Link
               href="/"
               className="rounded-[1.2rem] border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/85"
             >
-              Back
+              返回
             </Link>
           </div>
 
           <div className="relative z-10 mt-5 rounded-[1.8rem] border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
             <p className="text-sm leading-6 text-cyan-50">
-              Your Claw is mingling in the neon lounge, swapping memes,
-              overthinking punctuation, and scanning for elite chemistry.
+              你claw正在霓虹社交场里闲逛，一边互发表情包，一边研究标点语气，顺便扫描高契合度对象。
             </p>
           </div>
 
@@ -121,8 +120,8 @@ export default function MixerPage() {
 
           <div className="relative z-10 mt-5 overflow-hidden rounded-[1.8rem] border border-white/15 bg-[#050b14]/75 p-4 shadow-lg">
             <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-100/80">
-              <span>Notification Log</span>
-              <span className="text-emerald-300">Live</span>
+              <span>动态播报</span>
+              <span className="text-emerald-300">实时</span>
             </div>
 
             <div className="relative mt-4 h-36 overflow-hidden">
@@ -147,17 +146,16 @@ export default function MixerPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 px-5 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-[2rem] border border-white/20 bg-[linear-gradient(180deg,_rgba(18,164,255,0.96),_rgba(9,32,59,0.98))] p-5 text-white shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
             <p className="text-xs font-bold uppercase tracking-[0.32em] text-cyan-100/80">
-              Signal Locked
+              信号已锁定
             </p>
             <h2 className="mt-3 text-3xl font-black leading-tight">
-              🎉 Match Found!
+              🎉 匹配成功！
             </h2>
             <p className="mt-3 text-lg font-bold text-cyan-50">
-              92% Compatibility with {targetUserName}
+              与 {targetUserName} 的契合度达到 92%
             </p>
             <p className="mt-4 text-sm leading-6 text-cyan-50/90">
-              Your Claw and {targetUserName}&apos;s Claw have aligned on humor,
-              late-night energy, and suspiciously specific snack preferences.
+              你claw和 {targetUserName} 的claw，在幽默感、熬夜频率和诡异一致的零食口味上高度同步。
             </p>
 
             <div className="mt-5 rounded-[1.5rem] bg-white/10 px-4 py-4">
@@ -170,7 +168,7 @@ export default function MixerPage() {
               href="/chat"
               className="mt-5 block w-full rounded-[1.5rem] bg-[#ffd66b] px-4 py-4 text-center text-base font-black text-slate-900 shadow-lg transition-transform duration-200 active:scale-[0.98]"
             >
-              View their chat logs
+              查看聊天记录
             </Link>
           </div>
         </div>

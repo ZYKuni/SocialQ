@@ -4,23 +4,23 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const loadingLines = [
-  "Booting claw compiler...",
-  "Extracting dark humor...",
-  "Analyzing late-night food cravings...",
-  "Sorting unread voice notes by emotional damage...",
-  "Injecting personality...",
-  "Polishing the chaos into charm...",
+  "正在启动claw生成器...",
+  "正在提取阴阳怪气浓度...",
+  "正在分析深夜宵夜偏好...",
+  "正在整理未读语音里的情绪波动...",
+  "正在注入灵魂和个性...",
+  "正在把混乱打磨成魅力...",
 ];
 
 const progressStops = [18, 36, 57, 73, 88, 100];
 
 const traits = [
-  { label: "Chaos", value: 84 },
-  { label: "Charm", value: 92 },
-  { label: "Loyalty", value: 76 },
-  { label: "Curiosity", value: 87 },
-  { label: "Meme IQ", value: 81 },
-  { label: "Night Owl", value: 69 },
+  { label: "搞怪值", value: 84 },
+  { label: "魅力值", value: 92 },
+  { label: "忠诚度", value: 76 },
+  { label: "好奇心", value: 87 },
+  { label: "梗感度", value: 81 },
+  { label: "夜猫子", value: 69 },
 ];
 
 function RadarChart() {
@@ -173,10 +173,10 @@ export default function HomePage() {
           <div className="relative flex items-center justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">
-                SocialQ Lab
+                SocialQ 实验室
               </p>
               <h1 className="mt-2 text-3xl font-black leading-none text-slate-900">
-                Create My Claw
+                生成我的claw
               </h1>
             </div>
             <div className="animate-bob rounded-[1.4rem] bg-white px-4 py-3 text-3xl shadow-lg">
@@ -190,19 +190,17 @@ export default function HomePage() {
                 <div className="rounded-[1.6rem] bg-gradient-to-br from-qqBlue via-qqSky to-qqMint p-[1px]">
                   <div className="rounded-[1.55rem] bg-slate-950/95 p-4 text-[#b6ffe8]">
                     <p className="text-xs uppercase tracking-[0.28em] text-[#7cdac8]">
-                      Mini Program Boot Screen
+                      小程序启动页
                     </p>
                     <p className="mt-3 text-sm leading-6 text-[#d8fff4]">
-                      Grant a tiny bit of QQ chat chaos so we can grow your
-                      legendary claw persona.
+                      授权一点点 QQ 聊天记录的混乱气息，我们就能替你孵化出专属的赛博claw人格。
                     </p>
                   </div>
                 </div>
 
                 <div className="rounded-[1.6rem] bg-white p-4 shadow-sm">
                   <p className="text-sm leading-6 text-slate-600">
-                    We&apos;ll pretend to read your chat history, remix your
-                    vibes, and hatch a lovable creature profile in seconds.
+                    我们会假装读懂你的聊天记录，重组你的气质、梗感和作息习惯，几秒内生成一只很懂你的claw。
                   </p>
                 </div>
 
@@ -211,7 +209,7 @@ export default function HomePage() {
                   onClick={startFlow}
                   className="w-full rounded-[1.7rem] bg-gradient-to-r from-qqBlue to-qqSky px-5 py-5 text-lg font-black text-white shadow-lg transition-transform duration-200 active:scale-[0.98]"
                 >
-                  Authorize QQ Chat History
+                  授权 QQ 聊天记录
                 </button>
               </section>
             )}
@@ -223,7 +221,7 @@ export default function HomePage() {
                     <span className="h-2.5 w-2.5 rounded-full bg-[#ff7b72]" />
                     <span className="h-2.5 w-2.5 rounded-full bg-[#ffd66b]" />
                     <span className="h-2.5 w-2.5 rounded-full bg-[#51d88a]" />
-                    <span className="ml-2">Claw Terminal</span>
+                    <span className="ml-2">claw终端</span>
                   </div>
 
                   <div className="mt-4 space-y-2 font-mono text-sm">
@@ -238,7 +236,7 @@ export default function HomePage() {
 
                 <div className="rounded-[1.6rem] bg-white p-4">
                   <div className="flex items-center justify-between text-sm font-bold text-slate-600">
-                    <span>Compiling your creature...</span>
+                    <span>正在编译你的claw...</span>
                     <span>{progress}%</span>
                   </div>
                   <div className="mt-3 h-4 overflow-hidden rounded-full bg-slate-200">
@@ -260,17 +258,16 @@ export default function HomePage() {
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">
-                        Success
+                        生成成功
                       </p>
                       <h2 className="text-2xl font-black text-slate-900">
-                        Your Claw is alive
+                        你的claw已上线
                       </h2>
                     </div>
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-slate-600">
-                    Mischievous, magnetic, slightly sleep-deprived, and
-                    suspiciously excellent at sending perfect reaction images.
+                    爱搞怪、有吸引力、轻微缺觉，而且在关键时刻总能发出一张恰到好处的表情包。
                   </p>
 
                   <div className="mt-4 aspect-square w-full">
@@ -282,7 +279,7 @@ export default function HomePage() {
                   href="/mixer"
                   className="block w-full rounded-[1.7rem] bg-gradient-to-r from-[#ff996e] to-[#ffd66b] px-5 py-5 text-center text-lg font-black text-slate-900 shadow-lg transition-transform duration-200 active:scale-[0.98]"
                 >
-                  Release my Claw into the wild
+                  放我的claw去社交
                 </Link>
 
                 <button
@@ -290,7 +287,7 @@ export default function HomePage() {
                   onClick={resetFlow}
                   className="w-full rounded-[1.4rem] border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-500"
                 >
-                  Start over
+                  重新生成
                 </button>
               </section>
             )}
@@ -300,19 +297,19 @@ export default function HomePage() {
             <div className="rounded-[1.4rem] bg-white/80 px-3 py-3">
               93%
               <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
-                Sass
+                嘴欠值
               </p>
             </div>
             <div className="rounded-[1.4rem] bg-white/80 px-3 py-3">
               24/7
               <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
-                Online-ish
+                在线感
               </p>
             </div>
             <div className="rounded-[1.4rem] bg-white/80 px-3 py-3">
               A+
               <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
-                Vibes
+                氛围感
               </p>
             </div>
           </div>

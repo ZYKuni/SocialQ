@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Create My Claw",
-  description: "A playful mobile-first SocialQ mini-program mockup",
+  title: "SocialQ claw匹配 Demo",
+  description: "一个移动端优先的 SocialQ QQ 小程序风格交互 Demo",
 };
 
 export default function RootLayout({ children }) {
