@@ -27,5 +27,9 @@
   },
   "engines": {
     "node": ">=18.18"
+  },
+  "overrides": {
+    "motion-dom": "12.9.4",
+    "motion-utils": "12.9.4"
   }
 }
