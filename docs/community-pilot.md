@@ -23,6 +23,8 @@ Vercel 项目 → 左侧栏 **Environment Variables**（旧版界面在 Settings
 
 保存后到 **Deployments**，对最新一次部署点 Redeploy，环境变量才会生效。打开网站首页，看到“第一次来 / 已有账号”就说明开启成功了。
 
+如果首页还是演示介绍，打开 `/api/community/me` 看一眼：`configured` 里哪一项是 `false`，就是那个变量没进到这次部署。最常见的原因是变量只勾了 Production 没勾 Preview（预览网址读的是 Preview），或者名字前后多了空格。改完要再 Redeploy 一次。
+
 ## 三、在自己电脑上准备开奖（约 5 分钟）
 
 开奖脚本在你的电脑上跑，需要 Node 22 或更新版本。
