@@ -8,6 +8,7 @@ import Link from "next/link";
 export async function api(path, { method = "GET", body } = {}) {
   const res = await fetch(`/api/community/${path}`, {
     method,
+    cache: "no-store",
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });

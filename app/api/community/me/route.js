@@ -7,15 +7,29 @@ import { fail, readJSON, requireUser } from "../_http";
 export const runtime = "nodejs";
 
 // GET：试点是否开启、当前用户、最新的卡、小区里已有几张能配对的卡
+// 试点开启了但数据库连不上时返回 503 和原因，前端显示出来，而不是悄悄退回演示模式。
+// 只报告环境变量有没有配，不回显任何值。
 export async function GET(request) {
-  const db = await getDB();
-  if (!db) return NextResponse.json({ enabled: false });
-  const user = await currentUser(request, db);
-  const cards = await db.cards.latestAll();
-  const members = cards.filter(eligible).length;
-  if (!user) return NextResponse.json({ enabled: true, user: null, members });
-  const row = await db.cards.latest(user.id);
-  return NextResponse.json({ enabled: true, user: publicUser(user), card: row?.card || null, members });
+  const env = process.env;
+  const configured = {
+    SUPABASE_URL: Boolean(env.SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+    COMMUNITY_CODE: Boolean(env.COMMUNITY_CODE),
+    SESSION_SECRET: Boolean(env.SESSION_SECRET),
+  };
+  try {
+    const db = await getDB();
+    if (!db) return NextResponse.json({ enabled: false, configured });
+    const user = await currentUser(request, db);
+    const cards = await db.cards.latestAll();
+    const members = cards.filter(eligible).length;
+    if (!user) return NextResponse.json({ enabled: true, user: null, members });
+    const row = await db.cards.latest(user.id);
+    return NextResponse.json({ enabled: true, user: publicUser(user), card: row?.card || null, members });
+  } catch (e) {
+    console.error("community me error:", e);
+    return NextResponse.json({ enabled: true, error: `数据库连接失败：${e.message}`, configured }, { status: 503 });
+  }
 }
 
 // PATCH {wechat} 或 {password, newPassword}

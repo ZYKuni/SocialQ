@@ -80,9 +80,10 @@ export default function HomePage() {
 
   useEffect(() => {
     api("me")
-      .catch(() => ({ enabled: false }))
+      .catch((e) => (e.status === 503 ? { enabled: true, error: e.message } : { enabled: false }))
       .then((me) => {
         setCommunity(me);
+        if (me.error) return setStage("broken");
         if (!me.enabled) return restoreSession();
         if (!me.user) return setStage("auth");
         applyServer(me);
@@ -266,6 +267,12 @@ export default function HomePage() {
 
           <div className="relative mt-6 rounded-[2rem] bg-[#fff9ee] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
             {stage === "boot" && <p className="py-10 text-center text-sm text-slate-400">加载中...</p>}
+
+            {stage === "broken" && (
+              <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-600">
+                小区试点暂时连不上数据库，请稍后再试。{community?.error && <span className="mt-1 block text-xs text-rose-400">{community.error}</span>}
+              </p>
+            )}
 
             {stage === "auth" && <AuthPanel members={community?.members || 0} onAuthed={onAuthed} />}
 
