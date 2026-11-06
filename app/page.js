@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RadarChart, ModeBadge, STORE, saveSession, loadSession } from "./components";
 import { GuidedChat, QuickPicker, ConfirmView } from "./persona-ui";
+import { AuthPanel, UserBar, api } from "./community-ui";
 import { buildCard, buildQuickState, categoryName, todayISO, SHARED } from "@/lib/socialState.mjs";
 
 const loadingLines = [
@@ -34,7 +35,8 @@ const evidenced = (traits = []) => traits.filter((t) => t.evidence && t.evidence
 
 export default function HomePage() {
   const router = useRouter();
-  const [stage, setStage] = useState("intro");
+  const [stage, setStage] = useState("boot");
+  const [community, setCommunity] = useState(null); // {enabled, user, card, members}；小区试点没开启时 enabled 为 false
   const [adult, setAdult] = useState(false);
   const [consent, setConsent] = useState(false);
   const [nickname, setNickname] = useState("");
@@ -48,18 +50,75 @@ export default function HomePage() {
   const [lineIndex, setLineIndex] = useState(0);
   const pending = useRef(false);
 
-  // 回到首页时恢复上一次的卡
-  useEffect(() => {
+  // 回到首页时恢复上一次的卡（演示模式只存在本次会话里）
+  function restoreSession() {
     const saved = loadSession(STORE.persona);
     const p = saved?.persona;
-    if (!p) return;
+    if (!p) return setStage("intro");
     setResult(saved);
     setAdult(true);
     setConsent(true);
     if (p.cardVersion !== 2) setStage("done");
     else if (p.tier === "quick") setStage("quickDone");
     else setStage(p.confirmedAt ? "done" : "confirm");
+  }
+
+  // 小区试点：已登录时以服务端的卡为准；本地还有没点“好了”的卡时，留在确认页
+  function applyServer(me) {
+    setAdult(true);
+    setConsent(true);
+    const p = loadSession(STORE.persona)?.persona;
+    if (p?.cardVersion === 2 && p.tier !== "quick" && !p.confirmedAt) return restoreSession();
+    if (me.card) {
+      keep({ persona: me.card, mode: null });
+      setStage(me.card.tier === "quick" ? "quickDone" : "done");
+    } else {
+      clearLocal();
+      setStage("intro");
+    }
+  }
+
+  useEffect(() => {
+    api("me")
+      .catch(() => ({ enabled: false }))
+      .then((me) => {
+        setCommunity(me);
+        if (!me.enabled) return restoreSession();
+        if (!me.user) return setStage("auth");
+        applyServer(me);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const inCommunity = Boolean(community?.enabled && community.user);
+  const socialPath = inCommunity ? "/matches" : "/mixer";
+
+  function clearLocal() {
+    setResult(null);
+    saveSession(STORE.persona, null);
+    saveSession(STORE.matches, null);
+    saveSession(STORE.onboarding, null);
+  }
+
+  async function onAuthed(user) {
+    clearLocal();
+    const me = await api("me").catch(() => ({ enabled: true, user, card: null }));
+    setCommunity(me);
+    applyServer(me);
+  }
+
+  function onLogout() {
+    clearLocal();
+    setCommunity((c) => ({ ...c, user: null, card: null }));
+    setStage("auth");
+  }
+
+  /** 小区试点里把卡存到服务端，返回服务端定稿的卡（名字换成昵称、版本号加 1）。 */
+  async function saveCard(p) {
+    if (!inCommunity) return p;
+    const data = await api("card", { method: "POST", body: { card: p } });
+    return data.card;
+  }
 
   useEffect(() => {
     if (stage !== "loading") return undefined;
@@ -154,11 +213,17 @@ export default function HomePage() {
     );
   }
 
-  function startQuick(selection) {
+  async function startQuick(selection) {
     const state = buildQuickState(selection);
-    const persona = buildCard({ state, tier: "quick", source: "quick", name: nickname.trim() || "我的claw", confirmedAt: todayISO() });
+    let persona = buildCard({ state, tier: "quick", source: "quick", name: community?.user?.nickname || nickname.trim() || "我的claw", confirmedAt: todayISO() });
+    try {
+      persona = await saveCard(persona);
+    } catch (e) {
+      setError(e.message);
+      return;
+    }
     keep({ persona, mode: null });
-    router.push("/mixer");
+    router.push(socialPath);
   }
 
   function startUpgrade() {
@@ -168,12 +233,9 @@ export default function HomePage() {
   }
 
   function resetFlow() {
-    setResult(null);
     setAnswers([]);
     setUpgradeFrom(null);
-    saveSession(STORE.persona, null);
-    saveSession(STORE.matches, null);
-    saveSession(STORE.onboarding, null);
+    clearLocal();
     setStage("intro");
   }
 
@@ -200,8 +262,13 @@ export default function HomePage() {
             </div>
             <div className="animate-bob rounded-[1.4rem] bg-white px-4 py-3 text-3xl shadow-lg">🐾</div>
           </div>
+          {inCommunity && <UserBar user={community.user} onLogout={onLogout} />}
 
           <div className="relative mt-6 rounded-[2rem] bg-[#fff9ee] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+            {stage === "boot" && <p className="py-10 text-center text-sm text-slate-400">加载中...</p>}
+
+            {stage === "auth" && <AuthPanel members={community?.members || 0} onAuthed={onAuthed} />}
+
             {stage === "intro" && (
               <section className="space-y-4">
                 <div className="rounded-[1.6rem] bg-gradient-to-br from-qqBlue via-qqSky to-qqMint p-[1px]">
@@ -251,7 +318,12 @@ export default function HomePage() {
 
             {stage === "guided" && <GuidedChat onDone={generateGuided} extraChips={upgradeChips} />}
 
-            {stage === "quick" && <QuickPicker onDone={startQuick} onBack={() => setStage("intro")} />}
+            {stage === "quick" && (
+              <>
+                {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600">{error}</p>}
+                <QuickPicker onDone={startQuick} onBack={() => setStage("intro")} />
+              </>
+            )}
 
             {stage === "closing" && persona && (
               <section className="space-y-4">
@@ -370,12 +442,20 @@ export default function HomePage() {
                     {result.privacy.fewMessages ? "内容有点少，这次只找兴趣和近况。" : ""}
                   </p>
                 )}
+                {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600">{error}</p>}
                 <ConfirmView
                   persona={persona}
                   onChange={(p) => keep({ ...result, persona: p })}
-                  onConfirm={(p) => {
+                  onConfirm={async (p) => {
+                    setError("");
                     keep({ ...result, persona: p, privacy: undefined });
-                    setStage("done");
+                    try {
+                      const saved = await saveCard(p);
+                      keep({ ...result, persona: saved, privacy: undefined });
+                      setStage("done");
+                    } catch (e) {
+                      setError(`保存失败：${e.message}`);
+                    }
                   }}
                   onPaste={() => setStage("paste")}
                 />
@@ -392,8 +472,8 @@ export default function HomePage() {
                 <button type="button" onClick={startUpgrade} className="w-full rounded-[1.7rem] bg-gradient-to-r from-qqBlue to-qqSky px-5 py-4 text-base font-black text-white shadow-lg">
                   让分身更像我（约 1 分钟）
                 </button>
-                <button type="button" onClick={() => router.push("/mixer")} className="w-full rounded-[1.4rem] border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">
-                  继续去社交
+                <button type="button" onClick={() => router.push(socialPath)} className="w-full rounded-[1.4rem] border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">
+                  {inCommunity ? "看本周配对" : "继续去社交"}
                 </button>
                 <button type="button" onClick={resetFlow} className="w-full text-xs font-bold text-slate-400">
                   重新开始
@@ -493,10 +573,10 @@ export default function HomePage() {
 
                 <button
                   type="button"
-                  onClick={() => router.push("/mixer")}
+                  onClick={() => router.push(socialPath)}
                   className="block w-full rounded-[1.7rem] bg-gradient-to-r from-[#ff996e] to-[#ffd66b] px-5 py-5 text-center text-lg font-black text-slate-900 shadow-lg transition-transform duration-200 active:scale-[0.98]"
                 >
-                  让分身出发
+                  {inCommunity ? "看本周配对" : "让分身出发"}
                 </button>
 
                 {isV2 && (
