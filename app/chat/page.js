@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ModeBadge, TierBadge, STORE, loadSession } from "../components";
+import { ModeBadge, TierBadge, UpgradeHint, STORE, loadSession } from "../components";
 
 function ChatBubble({ message, humanMode, names }) {
   const isHuman = message.speaker === "ME";
@@ -37,6 +37,7 @@ export default function ChatPage() {
   const [match, setMatch] = useState(null);
   const [mode, setMode] = useState("live");
   const [meName, setMeName] = useState("我");
+  const [meTier, setMeTier] = useState("full");
   const [visibleCount, setVisibleCount] = useState(0);
   const [takeover, setTakeover] = useState(false);
   const [draft, setDraft] = useState("");
@@ -54,6 +55,7 @@ export default function ChatPage() {
     setMatch(found);
     setMode(data.mode);
     setMeName(data.me?.name || "我");
+    setMeTier(data.me?.tier || "full");
     setDraft(found.icebreakers?.[0] || "你好呀，我们的claw刚刚聊得挺开心，认识一下？");
   }, []);
 
@@ -141,10 +143,18 @@ export default function ChatPage() {
                 <p className="text-[12px] leading-5 text-slate-500">
                   下面的气泡来自双方的 AI 分身，不是真人本人。分身只使用人格卡里的信息，不会透露联系方式等隐私。
                 </p>
+                {match.candidate.tier === "quick" && (
+                  <p className="rounded-xl bg-slate-100 px-3 py-2 text-[12px] text-slate-500">TA 的分身信息较少</p>
+                )}
+                {meTier === "quick" && (
+                  <p className="rounded-xl bg-slate-100 px-3 py-2 text-[12px] text-slate-500">你用的是速通卡，对方会看到“TA 的分身信息较少”。</p>
+                )}
                 <ModeBadge mode={mode} />
               </motion.div>
             )}
           </AnimatePresence>
+
+          {!takeover && meTier === "quick" && <UpgradeHint dark={false} />}
 
           <div className="mt-5 flex flex-col gap-4">
             {messages.map((m, i) => (

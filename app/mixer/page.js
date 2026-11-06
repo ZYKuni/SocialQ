@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SAMPLE_POOL } from "@/lib/samplePool.mjs";
-import { ModeBadge, TierBadge, STORE, loadSession, saveSession } from "../components";
+import { ModeBadge, TierBadge, UpgradeHint, STORE, loadSession, saveSession } from "../components";
 
 const POSITIONS = [
   { top: "12%", left: "8%", delay: "0s", duration: "6s" },
@@ -70,7 +70,8 @@ export default function MixerPage() {
     if (started.current) return;
     started.current = true;
     const saved = loadSession(STORE.persona);
-    if (!saved?.persona) {
+    // v2 完整卡要先在确认页点“好了”；速通卡不需要确认
+    if (!saved?.persona || (saved.persona.cardVersion === 2 && saved.persona.tier !== "quick" && !saved.persona.confirmedAt)) {
       setMissing(true);
       return;
     }
@@ -131,6 +132,8 @@ export default function MixerPage() {
             <p className="mt-1 text-[11px] text-cyan-100/70">候选均为虚构示例用户</p>
           </div>
 
+          {persona?.tier === "quick" && <UpgradeHint />}
+
           <div className="relative z-10 mt-6 h-[46vh] rounded-[2rem] border border-white/15 bg-[#08111f]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
             <div className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,_rgba(116,211,255,0.3),_rgba(116,211,255,0.02)_70%,_transparent_72%)]" />
             <div className="absolute left-1/2 top-1/2 h-60 w-60 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-200/15" />
@@ -147,7 +150,7 @@ export default function MixerPage() {
             <div className="mt-4 flex flex-col gap-3">
               {missing && (
                 <Link href="/" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-cyan-50">
-                  还没有生成claw，先回首页生成一个 →
+                  还没有生成或确认claw，先回首页 →
                 </Link>
               )}
               {error && (

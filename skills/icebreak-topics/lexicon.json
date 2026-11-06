@@ -1,0 +1,52 @@
+{
+  "version": "0.1.0",
+  "note": "归一化词表第一版：把同一个东西的不同说法对到同一个 canonical。popularity 用于小众度：mass（大众）/ mid（中等）/ niche（小众）。用户池小于 50 人时用它估计小众度，池子够大后改用实际占比。",
+  "entities": [
+    { "canonical": "周杰伦", "category": "music", "aliases": ["Jay", "Jay Chou", "周董", "杰伦"], "popularity": "mass" },
+    { "canonical": "五月天", "category": "music", "aliases": ["Mayday", "五迷"], "popularity": "mass" },
+    { "canonical": "陈奕迅", "category": "music", "aliases": ["Eason", "Eason Chan"], "popularity": "mass" },
+    { "canonical": "Taylor Swift", "category": "music", "aliases": ["霉霉", "泰勒斯威夫特", "TS"], "popularity": "mass" },
+    { "canonical": "英雄联盟", "category": "games", "aliases": ["LOL", "撸啊撸", "联盟"], "popularity": "mass" },
+    { "canonical": "王者荣耀", "category": "games", "aliases": ["王者", "农药"], "popularity": "mass" },
+    { "canonical": "原神", "category": "games", "aliases": ["Genshin", "Genshin Impact"], "popularity": "mass" },
+    { "canonical": "崩坏：星穹铁道", "category": "games", "aliases": ["星铁", "崩铁", "Star Rail"], "popularity": "mid" },
+    { "canonical": "反恐精英2", "category": "games", "aliases": ["CS2", "CS", "CSGO", "CS:GO"], "popularity": "mid" },
+    { "canonical": "我的世界", "category": "games", "aliases": ["MC", "Minecraft", "麦块"], "popularity": "mass" },
+    { "canonical": "黑神话：悟空", "category": "games", "aliases": ["黑神话", "黑猴"], "popularity": "mass" },
+    { "canonical": "博德之门3", "category": "games", "aliases": ["BG3", "博德3"], "popularity": "niche" },
+    { "canonical": "NBA", "category": "sports_watch", "aliases": ["美职篮"], "popularity": "mass" },
+    { "canonical": "英超", "category": "sports_watch", "aliases": ["Premier League", "英格兰足球超级联赛"], "popularity": "mid" },
+    { "canonical": "英雄联盟职业联赛", "category": "sports_watch", "aliases": ["LPL"], "popularity": "mid" },
+    { "canonical": "英雄联盟全球总决赛", "category": "sports_watch", "aliases": ["S赛", "全球总决赛", "Worlds"], "popularity": "mid" },
+    { "canonical": "F1", "category": "sports_watch", "aliases": ["一级方程式", "Formula 1"], "popularity": "niche" }
+  ],
+  "types": [
+    { "canonical": "悬疑", "category": "film_tv", "aliases": ["推理片", "悬疑片", "烧脑片", "犯罪片"] },
+    { "canonical": "科幻", "category": "film_tv", "aliases": ["科幻片", "sci-fi", "SF"] },
+    { "canonical": "恐怖", "category": "film_tv", "aliases": ["恐怖片", "惊悚片", "鬼片"] },
+    { "canonical": "纪录片", "category": "film_tv", "aliases": ["纪录", "docu"] },
+    { "canonical": "说唱", "category": "music", "aliases": ["嘻哈", "hip-hop", "rap", "饶舌"] },
+    { "canonical": "独立音乐", "category": "music", "aliases": ["indie", "独立乐队"] },
+    { "canonical": "摇滚", "category": "music", "aliases": ["rock", "后摇", "朋克"] },
+    { "canonical": "电子", "category": "music", "aliases": ["EDM", "电音", "techno", "house"] },
+    { "canonical": "番剧", "category": "acg", "aliases": ["动画", "新番", "追番", "动漫"] },
+    { "canonical": "抽卡手游", "category": "games", "aliases": ["二游", "gacha", "抽卡游戏"] },
+    { "canonical": "MOBA", "category": "games", "aliases": ["推塔游戏"] },
+    { "canonical": "爬山徒步", "category": "outdoor", "aliases": ["爬山", "徒步", "登山", "hiking"] },
+    { "canonical": "健身", "category": "sports_play", "aliases": ["撸铁", "健身房", "gym", "力量训练"] },
+    { "canonical": "跑步", "category": "sports_play", "aliases": ["夜跑", "晨跑", "马拉松", "running"] },
+    { "canonical": "羽毛球", "category": "sports_play", "aliases": ["羽球", "badminton"] },
+    { "canonical": "K歌", "category": "sing_perform", "aliases": ["唱歌", "KTV", "唱K", "K歌"] },
+    { "canonical": "城市漫步", "category": "travel", "aliases": ["citywalk", "City Walk", "压马路"] },
+    { "canonical": "咖啡", "category": "food", "aliases": ["咖啡探店", "手冲", "精品咖啡"] },
+    { "canonical": "剧本杀", "category": "party_games", "aliases": ["剧本", "jbs"] },
+    { "canonical": "密室逃脱", "category": "party_games", "aliases": ["密室", "逃脱"] },
+    { "canonical": "看展", "category": "art_craft", "aliases": ["展览", "逛展", "美术馆", "博物馆"] },
+    { "canonical": "摄影", "category": "art_craft", "aliases": ["拍照", "扫街", "胶片"] }
+  ],
+  "matching": {
+    "normalize": "比较前统一转小写、去空格和标点，全角转半角",
+    "aliasMatch": "命中 aliases 任意一项即视为该 canonical",
+    "unknown": "词表里没有的词按原文比较；两个词互相包含（如“悬疑”和“悬疑片”）也算命中，但只在类型层生效，不在具体对象层生效"
+  }
+}
