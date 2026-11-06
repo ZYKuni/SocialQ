@@ -1,10 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
 // 页面间共享的小组件和会话存储工具
 
 export const STORE = {
   persona: "socialq.persona",
   matches: "socialq.matches",
+  onboarding: "socialq.onboarding", // 三问引导的半路进度，中途退出下次接着答
+  upgradeHintClosed: "socialq.upgradeHintClosed", // 速通卡升级提示，本次会话关掉后不再出现
 };
 
 export function saveSession(key, value) {
@@ -91,3 +96,31 @@ export function TierBadge({ tier }) {
     </span>
   );
 }
+
+// 速通卡升级提示：本次会话关掉后不再出现（mixer 和 chat 共用一个开关）
+export function UpgradeHint({ dark = true }) {
+  const [hidden, setHidden] = useState(true);
+  useEffect(() => setHidden(Boolean(loadSession(STORE.upgradeHintClosed))), []);
+  if (hidden) return null;
+  return (
+    <div className={`relative z-10 mt-4 rounded-[1.6rem] border px-4 py-3 text-sm leading-6 ${dark ? "border-amber-200/40 bg-amber-300/15 text-amber-50" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+      <p>你的分身只知道你喜欢什么类型。聊 3 个问题，它就能说出具体的了。</p>
+      <div className="mt-2 flex gap-2">
+        <Link href="/" className="rounded-full bg-amber-400 px-3 py-1 text-xs font-black text-slate-900">
+          让分身更像我
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            saveSession(STORE.upgradeHintClosed, true);
+            setHidden(true);
+          }}
+          className="rounded-full border border-current px-3 py-1 text-xs font-bold opacity-80"
+        >
+          先不了
+        </button>
+      </div>
+    </div>
+  );
+}
+

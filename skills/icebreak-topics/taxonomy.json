@@ -1,0 +1,141 @@
+{
+  "version": "0.1.0",
+  "note": "兴趣三级结构：大类 → 类型 → 具体对象。defaultClass 是只在大类或类型层重合时的默认分类；双方命中同一个具体对象时一律算 A 类。",
+  "categories": [
+    {
+      "id": "music",
+      "name": "音乐",
+      "types": ["流行", "说唱", "摇滚", "独立音乐", "电子", "民谣", "古典", "国风", "日韩流行"],
+      "entityKinds": ["歌手", "乐队", "专辑", "歌曲"],
+      "defaultClass": "B",
+      "timelyEvents": ["新歌或新专辑发布", "演唱会", "音乐节"],
+      "note": "同一歌手或乐队 → A；同一场演唱会 → 可升级为具体邀约"
+    },
+    {
+      "id": "games",
+      "name": "游戏",
+      "types": ["MOBA", "射击", "开放世界", "抽卡手游", "主机单机", "派对休闲", "卡牌策略", "模拟经营"],
+      "entityKinds": ["具体游戏", "游戏角色", "战队"],
+      "defaultClass": "B",
+      "timelyEvents": ["新版本或新赛季", "新游戏发售", "电竞比赛"],
+      "note": "同一款游戏 → A。游戏能马上在线上一起玩，“开黑”可作为当天就能实现的邀约"
+    },
+    {
+      "id": "sports_watch",
+      "name": "看比赛",
+      "types": ["篮球", "足球", "电竞", "F1", "网球", "羽毛球", "排球"],
+      "entityKinds": ["球队", "球员", "联赛", "具体比赛"],
+      "defaultClass": "A",
+      "timelyEvents": ["今天或本周的比赛", "转会", "季后赛"],
+      "note": "看比赛天然有时效，同一支球队 → A 且时效加成最大"
+    },
+    {
+      "id": "sports_play",
+      "name": "运动健身",
+      "types": ["健身", "跑步", "篮球", "羽毛球", "游泳", "骑行", "瑜伽", "飞盘"],
+      "entityKinds": ["具体场地", "具体赛事（如某场马拉松）"],
+      "defaultClass": "C",
+      "timelyEvents": ["报名的比赛", "打卡计划"],
+      "note": "一起做才有内容；同报一场马拉松 → 具体邀约"
+    },
+    {
+      "id": "outdoor",
+      "name": "户外",
+      "types": ["爬山徒步", "露营", "骑行", "滑雪", "潜水", "钓鱼"],
+      "entityKinds": ["具体山或路线", "具体营地"],
+      "defaultClass": "C",
+      "timelyEvents": ["季节限定（赏枫、滑雪季）"],
+      "note": "都想去同一座山 → 具体邀约"
+    },
+    {
+      "id": "film_tv",
+      "name": "影视",
+      "types": ["悬疑", "科幻", "喜剧", "爱情", "文艺", "恐怖", "动作", "纪录片", "美剧", "韩剧", "国产剧", "综艺"],
+      "entityKinds": ["电影", "剧集", "导演", "演员"],
+      "defaultClass": "B",
+      "timelyEvents": ["新片上映", "正在追的剧更新"],
+      "note": "你举的例子：都爱看电影是 C，都爱悬疑片是 B，都喜欢同一部片是 A"
+    },
+    {
+      "id": "acg",
+      "name": "动漫二次元",
+      "types": ["番剧", "漫画", "轻小说", "cosplay", "虚拟主播", "国创"],
+      "entityKinds": ["具体作品", "角色", "主播"],
+      "defaultClass": "B",
+      "timelyEvents": ["新番季", "漫展"],
+      "note": "同一部作品 → A；同去一场漫展 → 具体邀约"
+    },
+    {
+      "id": "reading",
+      "name": "阅读",
+      "types": ["科幻小说", "推理小说", "网文", "文学", "历史", "心理学", "商业"],
+      "entityKinds": ["书", "作者"],
+      "defaultClass": "B",
+      "timelyEvents": ["正在读的书"],
+      "note": "互相推荐书是 B 类对不上时的好退路"
+    },
+    {
+      "id": "food",
+      "name": "美食探店",
+      "types": ["咖啡", "甜品", "火锅", "烧烤", "日料", "做饭", "烘焙"],
+      "entityKinds": ["具体店", "具体菜"],
+      "defaultClass": "C",
+      "timelyEvents": ["新开的店"],
+      "note": "探店是 C；会做饭和想学做饭是 D"
+    },
+    {
+      "id": "travel",
+      "name": "旅行",
+      "types": ["城市漫步", "自驾", "海岛", "古镇", "出境游", "特种兵旅游"],
+      "entityKinds": ["城市", "景点"],
+      "defaultClass": "C",
+      "timelyEvents": ["刚去过", "计划要去"],
+      "note": "去过同一个城市可以聊（偏 B）；都想去同一个地方 → 具体邀约"
+    },
+    {
+      "id": "sing_perform",
+      "name": "唱歌和乐器",
+      "types": ["K歌", "吉他", "钢琴", "架子鼓", "舞蹈", "乐队"],
+      "entityKinds": ["具体曲目"],
+      "defaultClass": "C",
+      "timelyEvents": ["演出", "练琴打卡"],
+      "note": "K歌是 C；一个会乐器、一个想学是 D"
+    },
+    {
+      "id": "art_craft",
+      "name": "艺术和手作",
+      "types": ["摄影", "画画", "手账", "手工", "看展", "设计"],
+      "entityKinds": ["具体展览", "摄影器材"],
+      "defaultClass": "C",
+      "timelyEvents": ["正在办的展"],
+      "note": "看展是 C，同一个展 → 具体邀约；摄影可以互相看作品，偏 B"
+    },
+    {
+      "id": "party_games",
+      "name": "桌游和聚会",
+      "types": ["桌游", "狼人杀", "剧本杀", "密室逃脱", "麻将"],
+      "entityKinds": ["具体桌游", "具体剧本"],
+      "defaultClass": "C",
+      "timelyEvents": [],
+      "note": "需要凑人，适合在接管后约"
+    },
+    {
+      "id": "tech",
+      "name": "数码科技",
+      "types": ["手机", "电脑", "键盘", "AI 工具", "编程", "智能硬件"],
+      "entityKinds": ["具体产品", "具体工具"],
+      "defaultClass": "B",
+      "timelyEvents": ["新品发布"],
+      "note": "一个懂、一个想入门是 D"
+    },
+    {
+      "id": "pets",
+      "name": "宠物",
+      "types": ["猫", "狗", "异宠"],
+      "entityKinds": ["品种"],
+      "defaultClass": "B",
+      "timelyEvents": [],
+      "note": "当下就能聊（晒照片）；同一品种可算 A"
+    }
+  ]
+}

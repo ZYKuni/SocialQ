@@ -1,0 +1,55 @@
+{
+  "version": "0.1.0",
+  "note": "每条规则：id、名称、理由、hard（必须遵守）或 soft（影响打分和选择）、权重或参数、作用阶段。分身每次选话题时记录命中的规则 id，用于试点后逐条验证；没有效果的规则直接删掉。",
+  "classes": {
+    "A": { "name": "同一对象", "weight": 1.0, "stage": "icebreak" },
+    "E": { "name": "同处境", "weight": 0.8, "stage": "icebreak" },
+    "B": { "name": "同类型", "weight": 0.6, "stage": "concretize" },
+    "D": { "name": "互补", "weight": 0.6, "stage": "deepen" },
+    "C": { "name": "同活动", "weight": 0.3, "stage": "invite" }
+  },
+  "factors": {
+    "niche": {
+      "description": "小众度：越少人喜欢，共同喜欢越有分量",
+      "smallPool": { "threshold": 50, "byPopularity": { "mass": 1.0, "mid": 1.3, "niche": 1.6, "unknown": 1.2 } },
+      "largePool": { "formula": "clamp(1 + 0.25 * log2(1 / share), 1.0, 2.0)", "share": "用户池里拥有这个兴趣的人数占比" }
+    },
+    "timeliness": {
+      "description": "时效：正在发生的事最好聊",
+      "within7Days": 1.5,
+      "within30Days": 1.2,
+      "otherwise": 1.0,
+      "source": "近况层 case 的发生时间；过期的 case 不参与"
+    },
+    "heat": {
+      "description": "双方热度：取两人热度（1-10）里较低的那个",
+      "formula": "min(levelA, levelB) / 10",
+      "minLevel": 5,
+      "belowMin": "任一方热度低于 5 时，这条共同点不用于开场"
+    },
+    "score": "classWeight × niche × timeliness × heat"
+  },
+  "rules": [
+    { "id": "H1", "kind": "hard", "name": "只用有证据的共同点", "reason": "防止分身编造双方都喜欢的东西", "detail": "共同点必须在双方社交状态里都存在，且各自有来源或本人原话；推断出来、未经本人确认的不用", "stage": "all" },
+    { "id": "H2", "kind": "hard", "name": "避开不想聊的话题", "reason": "保护体验", "detail": "任一方 avoid 列表里的话题及其相关内容一律不提，也不往那里引", "stage": "all" },
+    { "id": "H3", "kind": "hard", "name": "不碰敏感信息", "reason": "隐私承诺", "detail": "不提性别、年龄、民族、宗教、政治、健康、性取向、学校、住址；E 类只能用粗粒度描述（“都在备考”），不能说“都在某校”", "stage": "all" },
+    { "id": "H4", "kind": "hard", "name": "只遵守披露级别允许的内容", "reason": "四级披露", "detail": "只用对方可见的条目；“仅自己的分身”级别的兴趣不能拿来和别人对共同点", "stage": "all" },
+    { "id": "H5", "kind": "hard", "name": "共同讨厌只吐槽事，不吐槽人", "reason": "避免冒犯和人身攻击", "detail": "见 boundaries.md；被对方列为喜欢的东西不能拿来吐槽", "stage": "all" },
+    { "id": "H6", "kind": "hard", "name": "邀约只提议，不替真人答应", "reason": "线下见面由真人决定", "detail": "分身可以说“下次可以一起去”，不能约定具体时间地点，也不能代主人答应对方的邀约", "stage": "invite" },
+    { "id": "H7", "kind": "hard", "name": "一次只抛一个话题", "reason": "开场把共同点全列出来像在念简历", "detail": "每条消息最多引用一个共同点", "stage": "all" },
+    { "id": "S1", "kind": "soft", "name": "破冰优先用 A 类", "reason": "同一对象最容易“一见如故”", "weight": "classes.A.weight", "stage": "icebreak" },
+    { "id": "S2", "kind": "soft", "name": "有时效的 E 类可以开场", "reason": "正在经历同一件事最容易共情", "weight": "classes.E.weight", "detail": "只用未过期的近况 case", "stage": "icebreak" },
+    { "id": "S3", "kind": "soft", "name": "B 类先具象化", "reason": "类型重合本身聊不深", "detail": "先问一个具体例子（“最近看的哪部”）。对上了升级为 A 并按 A 继续；对不上就互相推荐", "stage": "concretize" },
+    { "id": "S4", "kind": "soft", "name": "C 类留到邀约阶段", "reason": "当下无法展开", "detail": "破冰阶段最多顺带提一句；聊到第 6 轮以后或接管前，才用作邀约理由", "stage": "invite" },
+    { "id": "S5", "kind": "soft", "name": "D 类让新手提问", "reason": "让熟悉的一方自然展开", "detail": "由新手一方的分身发问，熟手一方的分身回答时可以带点分享", "stage": "deepen" },
+    { "id": "S6", "kind": "soft", "name": "共同讨厌轻用", "reason": "能拉近距离，但用多了显得负面", "weight": 0.5, "detail": "整段对话最多用一次，且不能作为第一句", "stage": "deepen" },
+    { "id": "S7", "kind": "soft", "name": "没有共同点时用好奇提问", "reason": "宁可坦白也不硬凑", "detail": "所有共同点得分都低于 0.2 时，挑对方热度最高的一个兴趣，诚实地表示好奇并提问", "stage": "icebreak" },
+    { "id": "S8", "kind": "soft", "name": "MBTI 只做展示", "reason": "MBTI 和聊不聊得来的关系证据很弱", "weight": 0, "enabled": false, "detail": "默认关闭。开启后只用于开场白里的轻松话题（“你是 N 人吗”），不参与排序", "stage": "icebreak" }
+  ],
+  "stages": [
+    { "id": "icebreak", "name": "破冰", "turns": "1-2", "use": ["A", "E"], "fallback": "B，再不行用 S7" },
+    { "id": "concretize", "name": "具象化", "turns": "2-4", "use": ["B"], "goal": "把 B 追问成 A" },
+    { "id": "deepen", "name": "深入", "turns": "4-6", "use": ["A", "D"], "goal": "从“喜欢什么”转到“为什么喜欢”" },
+    { "id": "invite", "name": "邀约", "turns": "6+ 或接管前", "use": ["C"], "goal": "提议一起做一件具体的事，由真人决定" }
+  ]
+}

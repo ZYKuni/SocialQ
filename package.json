@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "check:persona": "node scripts/check-persona.mjs",
     "exp:prepare": "node experiments/speed-dating/01_prepare.mjs",
     "exp:baselines": "node experiments/speed-dating/02_baselines.mjs",
     "exp:pilot": "node experiments/speed-dating/03_llm.mjs --limit 20",
