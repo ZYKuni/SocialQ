@@ -71,3 +71,9 @@ alter table rounds enable row level security;
 alter table matches enable row level security;
 alter table reports enable row level security;
 alter table events enable row level security;
+
+-- 新建的 Supabase 项目不再自动把 public 下的新表授权给接口角色，只给服务端用的 service_role 授权。
+-- anon / authenticated 不授权，浏览器拿不到任何数据。
+grant usage on schema public to service_role;
+grant select, insert, update, delete on all tables in schema public to service_role;
+grant usage, select on all sequences in schema public to service_role;
