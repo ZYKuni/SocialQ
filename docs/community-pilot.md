@@ -6,13 +6,13 @@
 
 1. 在 [supabase.com](https://supabase.com) 注册，新建一个项目。Region 选 **Southeast Asia (Singapore)**，套餐选 Free。数据库密码自己记好。
 2. 左侧 **SQL Editor** → New query，把仓库里 `supabase/schema.sql` 的全部内容粘进去，点 Run。
-3. 左侧 **Project Settings → API**，记下两样东西：
-   - Project URL（形如 `https://xxxx.supabase.co`）
-   - `service_role` key（点 Reveal 才看得到）。它能读写全部数据，只放在 Vercel 和你自己电脑的 `.env.local` 里，不要发给别人。
+3. 左下角 **Project Settings**，记下两样东西：
+   - Project URL：`https://<Project ID>.supabase.co`，Project ID 在 General 页能看到
+   - 密钥：**API Keys** 页里以 `sb_secret_` 开头的 secret key；只有旧版界面时用 Legacy 里的 `service_role`。它能读写全部数据，只放在 Vercel 和你自己电脑的 `.env.local` 里，不要发给别人。
 
 ## 二、在 Vercel 里配环境变量（约 5 分钟）
 
-Vercel 项目 → **Settings → Environment Variables**，新增下面四个，Environment 勾选 Production 和 Preview：
+Vercel 项目 → 左侧栏 **Environment Variables**（旧版界面在 Settings 里），新增下面四个，Environment 勾选 Production 和 Preview：
 
 | 名称 | 值 |
 | --- | --- |
