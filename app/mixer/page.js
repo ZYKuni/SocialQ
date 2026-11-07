@@ -33,36 +33,85 @@ function FloatingAvatar({ avatar, pos, highlight }) {
   );
 }
 
+/** 调 /api/match，带超时；接口超时返回的不是 JSON 时也给出能看懂的错误。 */
+async function postMatch(payload, ms) {
+  const ctrl = new AbortController();
+  const timer = window.setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch("/api/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || (res.status === 504 ? "聊得太久超时了" : "匹配失败"));
+    return json;
+  } catch (e) {
+    throw e.name === "AbortError" ? new Error("等得太久了") : e;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 export default function MixerPage() {
   const router = useRouter();
   const [persona, setPersona] = useState(null);
   const [missing, setMissing] = useState(false);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(null); // 已聊完的结果，边聊边增加
+  const [finished, setFinished] = useState(false);
   const [error, setError] = useState("");
   const [lines, setLines] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [progress, setProgress] = useState(null); // {done, total}
+  const [elapsed, setElapsed] = useState(0);
   const started = useRef(false);
+  const runId = useRef(0);
 
+  // 先粗筛出候选人，再和每位候选人分别发一个请求：谁先聊完先显示，一位卡住不拖累其他人
   const run = useCallback(async (p) => {
+    const id = ++runId.current;
+    const alive = () => runId.current === id;
     setError("");
     setData(null);
+    setFinished(false);
     setShowModal(false);
+    setProgress(null);
+    setElapsed(0);
+    setLines(["按兴趣重合度粗筛候选..."]);
     try {
-      const res = await fetch("/api/match", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ persona: p }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "匹配失败");
-      setData(json);
-      saveSession(STORE.matches, json);
-      setLines(
-        json.matches.map((m) => `和 ${m.candidate.name} 的claw聊了 ${m.transcript.length} 句 · ${m.tier.label}`)
+      const sl = await postMatch({ persona: p, step: "shortlist" }, 20000);
+      if (!alive()) return;
+      setProgress({ done: 0, total: sl.shortlist.length });
+      setLines((cur) => [...cur, `挑出 ${sl.shortlist.map((c) => c.name).join("、")}，让双方分身开聊...`]);
+      const matches = [];
+      let mode = sl.mode;
+      await Promise.all(
+        sl.shortlist.map(async (c) => {
+          try {
+            const r = await postMatch({ persona: p, candidateId: c.id }, 200000);
+            if (!alive()) return;
+            mode = r.mode;
+            matches.push(r.match);
+            matches.sort((a, b) => b.score - a.score);
+            const snapshot = { mode, me: sl.me, matches: [...matches] };
+            setData(snapshot);
+            saveSession(STORE.matches, snapshot); // 聊完一位就存，没等全部聊完也能点进代聊记录
+            setLines((cur) => [...cur, `和 ${c.name} 的claw聊完了 ${r.match.transcript.length} 句 · ${r.match.tier.label}`].slice(-6));
+          } catch (e) {
+            if (alive()) setLines((cur) => [...cur, `和 ${c.name} 的claw这次没聊成：${e.message}`].slice(-6));
+          } finally {
+            if (alive()) setProgress((pr) => pr && { ...pr, done: pr.done + 1 });
+          }
+        })
       );
-      window.setTimeout(() => setShowModal(true), 600);
+      if (!alive()) return;
+      if (!matches.length) throw new Error("这次一位都没聊成，可能是 AI 服务太忙");
+      saveSession(STORE.matches, { mode, me: sl.me, matches });
+      setFinished(true);
+      window.setTimeout(() => alive() && setShowModal(true), 600);
     } catch (e) {
-      setError(e.message);
+      if (alive()) setError(e.message);
     }
   }, []);
 
@@ -79,6 +128,7 @@ export default function MixerPage() {
     const cached = loadSession(STORE.matches);
     if (cached?.matches?.length && cached.me?.name === saved.persona.name) {
       setData(cached);
+      setFinished(true);
       setLines(cached.matches.map((m) => `和 ${m.candidate.name} 的claw聊了 ${m.transcript.length} 句 · ${m.tier.label}`));
       setShowModal(true);
       return;
@@ -86,25 +136,30 @@ export default function MixerPage() {
     run(saved.persona);
   }, [run]);
 
-  // 等待结果期间滚动播报
+  const waiting = !finished && !error && !missing && Boolean(persona);
+
+  // 等待期间：计时，并滚动播报
   useEffect(() => {
-    if (data || error || missing) return undefined;
+    if (!waiting) return undefined;
+    const t0 = Date.now();
+    const clock = window.setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000);
     let i = 0;
     const names = SAMPLE_POOL.map((c) => c.name);
     const templates = [
       (n) => `你的claw正在和 ${n} 的claw打招呼...`,
-      (n) => `正在比对你和 ${n} 的兴趣...`,
       (n) => `${n} 的claw抛来一个梗...`,
       () => "裁判正在读代聊记录...",
     ];
-    setLines(["按兴趣重合度粗筛候选...", "挑出前 3 位，让双方分身开聊..."]);
-    const timer = window.setInterval(() => {
+    const ticker = window.setInterval(() => {
       const line = templates[i % templates.length](names[i % names.length]);
       i += 1;
       setLines((cur) => [...cur, line].slice(-6));
-    }, 1300);
-    return () => window.clearInterval(timer);
-  }, [data, error, missing]);
+    }, 2600);
+    return () => {
+      window.clearInterval(clock);
+      window.clearInterval(ticker);
+    };
+  }, [waiting]);
 
   const top = data?.matches?.[0];
   const matchedIds = new Set((data?.matches || []).map((m) => m.candidate.id));
@@ -145,7 +200,7 @@ export default function MixerPage() {
           <div className="relative z-10 mt-5 overflow-hidden rounded-[1.8rem] border border-white/15 bg-[#050b14]/75 p-4 shadow-lg">
             <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-100/80">
               <span>动态播报</span>
-              <span className="text-emerald-300">{data ? "完成" : "实时"}</span>
+              <span className="text-emerald-300">{finished ? "完成" : "实时"}</span>
             </div>
             <div className="mt-4 flex flex-col gap-3">
               {missing && (
@@ -163,9 +218,14 @@ export default function MixerPage() {
                   {line}
                 </div>
               ))}
+              {waiting && (
+                <p className="text-[11px] leading-5 text-cyan-100/70">
+                  已用 {elapsed} 秒{progress ? ` · 聊完 ${progress.done}/${progress.total} 位` : ""} · 每位要来回聊 6 句再评估，通常 30 到 90 秒
+                </p>
+              )}
               {data && !showModal && (
                 <button type="button" onClick={() => setShowModal(true)} className="rounded-2xl bg-[#ffd66b] px-3 py-3 text-sm font-black text-slate-900">
-                  查看匹配结果
+                  {finished ? "查看匹配结果" : `先看已聊完的 ${data.matches.length} 位`}
                 </button>
               )}
             </div>
