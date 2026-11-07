@@ -21,9 +21,9 @@ Vercel 项目 → 左侧栏 **Environment Variables**（旧版界面在 Settings
 | `COMMUNITY_CODE` | 小区口令，邻居注册时要输入 |
 | `SESSION_SECRET` | 一串 32 位以上的随机字符，可以在终端运行 `openssl rand -base64 32` 生成 |
 
-保存后到 **Deployments**，对最新一次部署点 Redeploy，环境变量才会生效。打开网站首页，看到“第一次来 / 已有账号”就说明开启成功了。
+保存后到 **Deployments**，对最新一次部署点 Redeploy，环境变量才会生效。打开网站首页，小区配对的入口显示“试点中”，点进去（`/community`）看到“第一次来 / 已有账号”，就说明开启成功了。
 
-如果首页还是演示介绍，打开 `/api/community/me` 看一眼：`configured` 里哪一项是 `false`，就是那个变量没进到这次部署。最常见的原因是变量只勾了 Production 没勾 Preview（预览网址读的是 Preview），或者名字前后多了空格。改完要再 Redeploy 一次。如果显示 `permission denied for table ...`，说明表没授权给 service_role：在 SQL Editor 里重新运行一遍 `supabase/schema.sql`（可以重复运行），并确认 `SUPABASE_SERVICE_ROLE_KEY` 填的是 `sb_secret_` 开头的 key，不是 `sb_publishable_`。
+如果小区入口显示“暂未开放”，打开 `/api/community/me` 看一眼：`configured` 里哪一项是 `false`，就是那个变量没进到这次部署。最常见的原因是变量只勾了 Production 没勾 Preview（预览网址读的是 Preview），或者名字前后多了空格。改完要再 Redeploy 一次。如果显示 `permission denied for table ...`，说明表没授权给 service_role：在 SQL Editor 里重新运行一遍 `supabase/schema.sql`（可以重复运行），并确认 `SUPABASE_SERVICE_ROLE_KEY` 填的是 `sb_secret_` 开头的 key，不是 `sb_publishable_`。
 
 ## 三、在自己电脑上准备开奖（约 5 分钟）
 

@@ -20,7 +20,7 @@ export default function MatchesPage() {
         const m = await api("me");
         setMe(m);
         if (!m.enabled) return;
-        if (!m.user) return router.replace("/");
+        if (!m.user) return router.replace("/community");
         setData(await api("matches"));
       } catch (e) {
         setError(e.message);
@@ -36,7 +36,7 @@ export default function MatchesPage() {
     <main className="min-h-screen bg-[#f4f8fc] px-4 py-6 font-display text-slate-800">
       <div className="mx-auto max-w-md space-y-4">
         <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-          <Link href="/">← 我的分身</Link>
+          <Link href="/community">← 我的分身</Link>
           {me?.user && <span>{me.user.nickname}</span>}
         </div>
         <header>
@@ -51,12 +51,12 @@ export default function MatchesPage() {
         {!me && !error && <p className="py-10 text-center text-sm text-slate-400">加载中...</p>}
         {me && !me.enabled && (
           <Notice>
-            小区试点还没开启。<Link href="/mixer" className="font-bold text-qqBlue">先和示例人物试试 →</Link>
+            小区试点还没开启。<Link href="/try" className="font-bold text-qqBlue">先单人体验一下 →</Link>
           </Notice>
         )}
         {me?.user && !me.card && (
           <Notice>
-            你还没有分身卡，配对时不会排到你。<Link href="/" className="font-bold text-qqBlue">先去建一张 →</Link>
+            你还没有分身卡，配对时不会排到你。<Link href="/community" className="font-bold text-qqBlue">先去建一张 →</Link>
           </Notice>
         )}
 
@@ -71,7 +71,8 @@ export default function MatchesPage() {
         ))}
 
         {me?.user && <Settings me={me} onMe={setMe} onGone={() => {
-          saveSession(STORE.persona, null);
+          saveSession(STORE.communityPersona, null);
+          saveSession(STORE.communityOnboarding, null);
           router.replace("/");
         }} />}
       </div>

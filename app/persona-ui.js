@@ -16,8 +16,8 @@ const ghostBtn = "w-full rounded-[1.4rem] border border-slate-200 bg-white px-4 
 /**
  * @param {{ onDone: (answers: {question:number, answer:string, followup?:string, followupAnswer?:string}[]) => void, extraChips?: string[] }} props
  */
-export function GuidedChat({ onDone, extraChips = [] }) {
-  const saved = loadSession(STORE.onboarding);
+export function GuidedChat({ onDone, extraChips = [], storeKey = STORE.onboarding }) {
+  const saved = loadSession(storeKey);
   const [answers, setAnswers] = useState(saved?.answers || []);
   const [step, setStep] = useState(saved?.step ?? 0); // 当前题目下标
   const [followup, setFollowup] = useState(saved?.followup || ""); // 当前题目的追问（有就表示在等追问的回答）
@@ -26,15 +26,15 @@ export function GuidedChat({ onDone, extraChips = [] }) {
   const bottom = useRef(null);
 
   useEffect(() => {
-    saveSession(STORE.onboarding, { answers, step, followup });
+    saveSession(storeKey, { answers, step, followup });
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [answers, step, followup]);
+  }, [answers, step, followup, storeKey]);
 
   const q = GUIDED_QUESTIONS[step];
   const chips = q ? (step === 0 && extraChips.length ? extraChips : q.chips) : [];
 
   function finish(next) {
-    saveSession(STORE.onboarding, null);
+    saveSession(storeKey, null);
     onDone(next);
   }
 
