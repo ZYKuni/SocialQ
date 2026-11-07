@@ -28,7 +28,12 @@ export async function GET(request) {
     return NextResponse.json({ enabled: true, user: publicUser(user), card: row?.card || null, members });
   } catch (e) {
     console.error("community me error:", e);
-    return NextResponse.json({ enabled: true, error: `数据库连接失败：${e.message}`, configured }, { status: 503 });
+    const hint = /permission denied/i.test(e.message)
+      ? "（表没授权给 service_role：在 Supabase SQL Editor 里重新运行 supabase/schema.sql，并确认用的是 sb_secret_ 开头的 key）"
+      : /relation .* does not exist|Could not find the table/i.test(e.message)
+        ? "（还没建表：在 Supabase SQL Editor 里运行 supabase/schema.sql）"
+        : "";
+    return NextResponse.json({ enabled: true, error: `数据库连接失败：${e.message}${hint}`, configured }, { status: 503 });
   }
 }
 
