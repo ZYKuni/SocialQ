@@ -511,6 +511,17 @@ export function CardBuilder({ mode = "demo" }) {
                     }
                   }}
                   onPaste={() => setStage("paste")}
+                  onAddMore={async (text) => {
+                    const res = await fetch("/api/persona", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ mode: "more", persona, text, consent, adult }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error || "补充失败，请稍后再试");
+                    keep({ ...result, persona: data.persona });
+                    return data.added;
+                  }}
                 />
               </>
             )}

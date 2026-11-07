@@ -270,8 +270,31 @@ function ItemRow({ title, evidence, disclosure, onDisclosure, level, onLevel, on
 /**
  * @param {{ persona: object, onChange: (p:object)=>void, onConfirm: (p:object)=>void, onPaste?: ()=>void, mode?: string }} props
  */
-export function ConfirmView({ persona, onChange, onConfirm, onPaste }) {
+export function ConfirmView({ persona, onChange, onConfirm, onPaste, onAddMore }) {
   const state = persona.state;
+  const [more, setMore] = useState("");
+  const [moreBusy, setMoreBusy] = useState(false);
+  const [moreMsg, setMoreMsg] = useState("");
+
+  async function addMore() {
+    const text = more.trim();
+    if (!text || moreBusy) return;
+    setMoreBusy(true);
+    setMoreMsg("");
+    try {
+      const added = await onAddMore(text);
+      if (added > 0) {
+        setMore("");
+        setMoreMsg(`加上了 ${added} 条，看看上面对不对`);
+      } else {
+        setMoreMsg("没认出具体的东西，换个说法试试，比如直接写剧名、游戏名或乐队名");
+      }
+    } catch (e) {
+      setMoreMsg(e.message);
+    } finally {
+      setMoreBusy(false);
+    }
+  }
   const rebuild = (nextState) => onChange(buildCard({ ...persona, state: nextState }));
   const edit = (kind, index, patch) => rebuild(updateItem(state, kind, index, patch));
   const pendingCount = ["interests", "situations", "skills"].reduce((n, k) => n + (state[k] || []).filter((x) => x.pending).length, 0);
@@ -374,10 +397,27 @@ export function ConfirmView({ persona, onChange, onConfirm, onPaste }) {
         </ul>
       </details>
 
-      {persona.thin && (
-        <p className="rounded-2xl bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-700">
-          信息还有点少：再说一个你最近在玩/在看的，分身开场会自然很多。
-        </p>
+      {(persona.thin || moreMsg) && (
+        <div className="space-y-2 rounded-2xl bg-sky-50 px-4 py-3">
+          {persona.thin && <p className="text-xs leading-5 text-sky-700">信息还有点少：再说一个你最近在玩/在看的，分身开场会自然很多。</p>}
+          {persona.thin && onAddMore && (
+            <div className="flex gap-2">
+              <input
+                value={more}
+                onChange={(e) => setMore(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addMore()}
+                placeholder="比如一部剧、一款游戏、一个乐队"
+                maxLength={100}
+                disabled={moreBusy}
+                className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-qqBlue"
+              />
+              <button type="button" disabled={!more.trim() || moreBusy} onClick={addMore} className="shrink-0 whitespace-nowrap rounded-2xl bg-qqBlue px-3 py-2 text-xs font-black text-white disabled:opacity-40">
+                {moreBusy ? "分析中..." : "补上"}
+              </button>
+            </div>
+          )}
+          {moreMsg && <p className="text-xs leading-5 text-sky-800">{moreMsg}</p>}
+        </div>
       )}
 
       <button type="button" onClick={confirm} className={primaryBtn}>
