@@ -21,6 +21,7 @@ export async function POST(request) {
   }
   if (mode === "guided") return guided(body);
   if (mode === "paste") return paste(body);
+  if (mode === "more") return more(body);
   if (String(chatText).trim().length < 20) {
     return NextResponse.json({ error: "聊天内容太少了，至少粘贴几句你自己发过的话" }, { status: 400 });
   }
@@ -70,6 +71,29 @@ async function guided(body) {
     return NextResponse.json({ persona, dropped, mode: llm.isMock ? "demo" : "live" });
   } catch (error) {
     console.error("persona guided error:", error.message);
+    return NextResponse.json({ error: "AI 服务暂时不可用，请稍后再试" }, { status: 502 });
+  }
+}
+
+/** 确认页“信息还有点少”时补的一句话 → 并进已有的卡。和三问一样按用户自己说的话抽取，可见范围用三问的默认值。 */
+async function more(body) {
+  const base = body.persona;
+  if (base?.cardVersion !== CARD_VERSION || !base.state) {
+    return NextResponse.json({ error: "缺少要补充的人格卡" }, { status: 400 });
+  }
+  const text = String(body.text || "").trim().slice(0, 200);
+  if (text.length < 2) return NextResponse.json({ error: "多写几个字吧，比如一部剧、一款游戏的名字" }, { status: 400 });
+  const userText = redact(text).text;
+  const today = todayISO();
+  try {
+    const llm = createLLM({ config: getLLMConfig() });
+    const { raw } = await extractState(llm, userText, { source: "guided", today });
+    const { state: incoming } = validateState(raw, { userText, source: "guided", today });
+    const { state, added } = mergeStates(base.state, incoming, { review: false });
+    const persona = buildCard({ ...base, state, confirmedAt: null, today });
+    return NextResponse.json({ persona, added, mode: llm.isMock ? "demo" : "live" });
+  } catch (error) {
+    console.error("persona more error:", error.message);
     return NextResponse.json({ error: "AI 服务暂时不可用，请稍后再试" }, { status: 502 });
   }
 }
