@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDB } from "@/lib/db.mjs";
-import { SESSION_COOKIE, checkPassword, hashPassword, sessionCookieOptions, verifyPassword } from "@/lib/auth.mjs";
+import { SESSION_COOKIE, checkNickname, checkPassword, hashPassword, sessionCookieOptions, verifyPassword } from "@/lib/auth.mjs";
 import { currentUser, publicUser, eligible } from "@/lib/community.mjs";
 import { fail, readJSON, requireUser } from "../_http";
 
@@ -37,12 +37,17 @@ export async function GET(request) {
   }
 }
 
-// PATCH {wechat} 或 {password, newPassword}
+// PATCH {nickname}、{wechat} 或 {password, newPassword}
 export async function PATCH(request) {
   const { db, user, res } = await requireUser(request);
   if (res) return res;
   const body = (await readJSON(request)) || {};
   const patch = {};
+  if ("nickname" in body) {
+    const n = checkNickname(body.nickname);
+    if (n.error) return fail(n.error);
+    if (n.nickname !== user.nickname) Object.assign(patch, { nickname: n.nickname, nickname_key: n.key });
+  }
   if ("wechat" in body) patch.wechat = String(body.wechat || "").trim().slice(0, 40) || null;
   if ("newPassword" in body) {
     if (!verifyPassword(body.password, user.password_hash)) return fail("原密码不对", 401);
@@ -50,8 +55,14 @@ export async function PATCH(request) {
     if (pw.error) return fail(pw.error);
     patch.password_hash = hashPassword(pw.password);
   }
-  if (!Object.keys(patch).length) return fail("没有要改的内容");
-  const updated = await db.users.update(user.id, patch);
+  if (!Object.keys(patch).length) return "nickname" in body ? NextResponse.json({ user: publicUser(user) }) : fail("没有要改的内容");
+  let updated;
+  try {
+    updated = await db.users.update(user.id, patch);
+  } catch (e) {
+    if (e.code === "nickname_taken") return fail("这个昵称已经有人用了，换一个吧", 409);
+    throw e;
+  }
   return NextResponse.json({ user: publicUser(updated) });
 }
 
