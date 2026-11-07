@@ -196,9 +196,26 @@ function MatchCard({ match, onChange, onHide }) {
 }
 
 function Settings({ me, onMe, onGone }) {
+  const [nickname, setNickname] = useState(me.user.nickname || "");
   const [wechat, setWechat] = useState(me.user.wechat || "");
   const [msg, setMsg] = useState("");
   const [pw, setPw] = useState({ password: "", newPassword: "" });
+
+  // 从顶部“设置”点进来时，等页面加载完再滚到这里
+  useEffect(() => {
+    if (window.location.hash === "#settings") document.getElementById("settings")?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  async function saveNickname() {
+    try {
+      const res = await api("me", { method: "PATCH", body: { nickname } });
+      onMe({ ...me, user: res.user });
+      setNickname(res.user.nickname);
+      setMsg("昵称已修改，下次登录请用新昵称");
+    } catch (e) {
+      setMsg(e.message);
+    }
+  }
 
   async function saveWechat() {
     try {
@@ -232,8 +249,15 @@ function Settings({ me, onMe, onGone }) {
 
   const input = "min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-qqBlue";
   return (
-    <section className="space-y-3 rounded-3xl bg-white p-5 text-sm shadow-sm">
+    <section id="settings" className="scroll-mt-4 space-y-3 rounded-3xl bg-white p-5 text-sm shadow-sm">
       <h2 className="font-black text-slate-800">我的设置</h2>
+      <div>
+        <p className="text-xs text-slate-500">昵称（2 到 16 个字，不能和别人重复；登录时用新昵称）</p>
+        <div className="mt-1 flex gap-2">
+          <input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={16} autoComplete="username" className={input} />
+          <button type="button" disabled={!nickname.trim() || nickname.trim() === me.user.nickname} onClick={saveNickname} className="shrink-0 whitespace-nowrap rounded-2xl bg-qqBlue px-3 py-2 text-xs font-black text-white disabled:opacity-40">修改</button>
+        </div>
+      </div>
       <div>
         <p className="text-xs text-slate-500">微信号（只在双方都想认识后给对方看）</p>
         <div className="mt-1 flex gap-2">

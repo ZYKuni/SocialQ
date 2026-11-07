@@ -121,6 +121,7 @@ export function UserBar({ user, onLogout }) {
       </span>
       <span className="flex gap-3">
         <Link href="/matches" className="font-bold text-qqBlue">本周配对</Link>
+        <Link href="/matches#settings" className="font-bold">设置</Link>
         <button type="button" onClick={logout} className="font-bold">退出</button>
       </span>
     </div>

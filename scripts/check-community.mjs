@@ -112,7 +112,7 @@ await check("配对页：微信号只在双方都想认识后出现", () => {
   assert.deepEqual(fromB.icebreakers, [], "开场白是写给 A 的，B 不显示");
 });
 
-await check("本地文件数据库：注册、存卡、开奖、选择、注销级联删除", async () => {
+await check("本地文件数据库：注册、存卡、开奖、选择、改昵称、注销级联删除", async () => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "sq-")), "db.json");
   const { getDB } = await import(`../lib/db.mjs?${Date.now()}`);
   const db = await getDB({ COMMUNITY_DEV_DB: "1", COMMUNITY_DEV_DB_PATH: file });
@@ -131,6 +131,9 @@ await check("本地文件数据库：注册、存卡、开奖、选择、注销�
   assert.equal((await db.matches.forUserInRound(b.id, round.id)).length, 1);
   await db.matches.update(m.id, { b_choice: "like" });
   assert.equal((await db.matches.byId(m.id)).b_choice, "like");
+  await assert.rejects(db.users.update(b.id, { nickname: "A", nickname_key: "a" }), (e) => e.code === "nickname_taken", "改成别人的昵称应该被拒");
+  assert.equal((await db.users.update(b.id, { nickname: "Bee", nickname_key: "bee" })).nickname, "Bee");
+  assert.equal((await db.users.byKey("bee")).id, b.id, "改名后用新昵称能找到");
   await db.users.remove(a.id);
   assert.equal(await db.cards.latest(a.id), null);
   assert.equal((await db.matches.all()).length, 0);
