@@ -12,3 +12,6 @@ dist
 # 实验数据：原始数据和中间文件不入库（汇总结果 results/ 入库）
 experiments/speed-dating/data/
 experiments/speed-dating/results/predictions/
+
+# 小区试点本地开发用的文件数据库
+.data/

@@ -83,8 +83,8 @@ export default function ChatPage() {
   if (notFound) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#eef7ff] p-6 font-display">
-        <Link href="/" className="rounded-2xl bg-white px-5 py-4 text-sm font-bold text-slate-700 shadow">
-          还没有匹配结果，回首页生成你的claw →
+        <Link href="/try" className="rounded-2xl bg-white px-5 py-4 text-sm font-bold text-slate-700 shadow">
+          还没有匹配结果，先去生成你的claw →
         </Link>
       </main>
     );

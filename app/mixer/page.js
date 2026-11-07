@@ -120,7 +120,7 @@ export default function MixerPage() {
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-cyan-100/80">赛博酒会</p>
               <h1 className="mt-2 text-3xl font-black leading-none">claw社交中</h1>
             </div>
-            <Link href="/" className="rounded-[1.2rem] border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/85">
+            <Link href="/try" className="rounded-[1.2rem] border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/85">
               返回
             </Link>
           </div>
@@ -149,8 +149,8 @@ export default function MixerPage() {
             </div>
             <div className="mt-4 flex flex-col gap-3">
               {missing && (
-                <Link href="/" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-cyan-50">
-                  还没有生成或确认claw，先回首页 →
+                <Link href="/try" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-cyan-50">
+                  还没有生成或确认claw，先去生成一个 →
                 </Link>
               )}
               {error && (

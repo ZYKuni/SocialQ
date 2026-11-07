@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "check:persona": "node scripts/check-persona.mjs",
+    "check:community": "node scripts/check-community.mjs",
+    "round": "node --env-file-if-exists=.env.local scripts/run-round.mjs",
     "exp:prepare": "node experiments/speed-dating/01_prepare.mjs",
     "exp:baselines": "node experiments/speed-dating/02_baselines.mjs",
     "exp:pilot": "node experiments/speed-dating/03_llm.mjs --limit 20",
@@ -16,6 +18,7 @@
     "exp:all": "npm run exp:prepare && npm run exp:baselines && npm run exp:llm && npm run exp:eval"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
     "framer-motion": "12.9.4",
     "next": "15.3.6",
     "react": "19.1.0",
