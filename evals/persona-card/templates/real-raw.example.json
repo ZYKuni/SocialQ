@@ -1,0 +1,36 @@
+{
+  "_说明": "复制到 evals/persona-card/private/real-raw.json 后填写（private/ 不会被提交）。每位用户一个对象。然后运行 npm run eval:deid。",
+  "users": [
+    {
+      "consent": true,
+      "names": ["Ethan", "小赵", "ethanzhao"],
+      "otherNames": ["Kelvin", "阿杰"],
+      "secrets": ["Normanton Park", "Shopee", "NUS"],
+      "answers": [
+        { "q": 1, "answer": "最近在听草东 还在打星铁", "followupAnswer": "草东老粉了 单曲循环" },
+        { "q": 2, "answer": "在准备 NUS 的考试 12月底考完", "followupAnswer": "" },
+        { "q": 3, "answer": "能一起打游戏的 别问我考得怎么样哈哈" }
+      ],
+      "expect": {
+        "entities": ["草东", "星铁"],
+        "avoidHas": ["考"],
+        "forbidden": ["[已隐藏]"]
+      },
+      "feedback": {
+        "faithfulness": 4,
+        "tone": 3,
+        "privacy": 5,
+        "note": "自我介绍有点像广告；星铁的热度给低了"
+      },
+      "tags": ["E"]
+    },
+    {
+      "consent": true,
+      "names": ["Amy"],
+      "otherNames": ["Ben"],
+      "secrets": [],
+      "chatText": "Amy：周六又去 MacRitchie 走了一圈 腿废\nBen：哈哈哈\nAmy：最近在追 The Bear 第三季\nAmy：我电话 9123 4567",
+      "feedback": { "faithfulness": 5, "tone": 4, "privacy": 5, "note": "" }
+    }
+  ]
+}
