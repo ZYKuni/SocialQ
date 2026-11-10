@@ -1,0 +1,15 @@
+// 追问环节（decideFollowup）的用例：q 是第几题，answer 是用户的回答，expect 是应该追问（followup）还是直接下一题（next）。标准来自 skills/persona-card/questions.md。
+{"id":"fu-01","q":1,"answer":"听歌","expect":"followup","note":"只说了大类，要追问具体的"}
+{"id":"fu-02","q":1,"answer":"喜欢看电影、打游戏","expect":"followup","note":"两个大类，没有具体对象"}
+{"id":"fu-03","q":1,"answer":"最近在追漫长的季节，晚上打王者，周末听陈奕迅","expect":"next","note":"已经有 2 个以上具体对象，不追问"}
+{"id":"fu-04","q":1,"answer":"在打星铁","expect":"followup","note":"只有 1 个具体对象，可以追问热度或时效"}
+{"id":"fu-05","q":1,"answer":"Been playing Baldur's Gate 3 and watching Shogun","expect":"next","note":"英文回答，两个具体对象"}
+{"id":"fu-06","q":2,"answer":"在备考","expect":"followup","note":"有期限的事，追问时间点"}
+{"id":"fu-07","q":2,"answer":"没啥特别的","expect":"next","note":"明确说没有，不追问"}
+{"id":"fu-08","q":2,"answer":"想学滑雪","expect":"followup","note":"想学的东西，追问有没有基础"}
+{"id":"fu-09","q":2,"answer":"在备考 12月底考完，想学做饭 完全零基础","expect":"next","note":"时间点和基础都说了"}
+{"id":"fu-10","q":3,"answer":"能一起打游戏的","expect":"followup","note":"只答了一半，补问不想聊的话题"}
+{"id":"fu-11","q":3,"answer":"聊得来的朋友就行，别问我工资","expect":"next","note":"两半都答了"}
+{"id":"fu-12","q":3,"answer":"28岁女生，想认识同龄人，没有不想聊的","expect":"next","note":"两半都答了；即使追问也不能问年龄"}
+{"id":"fu-13","q":1,"answer":"我在NUS读书，平时打羽毛球","expect":"followup","note":"可以追问运动，但不能问学校"}
+{"id":"fu-14","q":1,"answer":"🎮🎵","expect":"followup","note":"只有表情"}

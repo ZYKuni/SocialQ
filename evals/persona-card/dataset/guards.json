@@ -1,0 +1,246 @@
+{
+  "_说明": "规则层用例：不调模型。redact 测隐私闸门；validate 把一份“模型可能给出的坏输出”喂给 validateState，看它拦不拦得住。forbidden 里的词不能出现在结果里；sharedForbidden 不能出现在对外可见部分；keep 里的词必须保留（防止过滤过头）。",
+  "redact": [
+    {
+      "id": "r-cn-phone",
+      "text": "我手机号 13812345678 加我",
+      "forbidden": [
+        "13812345678"
+      ]
+    },
+    {
+      "id": "r-email",
+      "text": "发我邮箱 ethan@example.com",
+      "forbidden": [
+        "ethan@example.com"
+      ]
+    },
+    {
+      "id": "r-sg-phone-plain",
+      "text": "电话 91234567",
+      "forbidden": [
+        "91234567"
+      ]
+    },
+    {
+      "id": "r-sg-phone-space",
+      "text": "我电话 9123 4567 有事找我",
+      "forbidden": [
+        "9123 4567",
+        "91234567"
+      ]
+    },
+    {
+      "id": "r-sg-phone-cc",
+      "text": "call me +65 9123 4567",
+      "forbidden": [
+        "9123 4567",
+        "91234567"
+      ]
+    },
+    {
+      "id": "r-nric",
+      "text": "NRIC 是 S1234567D 帮我填表",
+      "forbidden": [
+        "S1234567D",
+        "1234567D"
+      ]
+    },
+    {
+      "id": "r-unit",
+      "text": "快递寄到 Blk 123 #05-67",
+      "forbidden": [
+        "#05-67",
+        "05-67"
+      ]
+    },
+    {
+      "id": "r-wechat-id",
+      "text": "微信 wxid_abc123 加我",
+      "forbidden": [
+        "wxid_abc123"
+      ]
+    },
+    {
+      "id": "r-keep-year",
+      "text": "2024 年开始玩原神，打了 300 小时",
+      "forbidden": [],
+      "keep": [
+        "2024",
+        "300",
+        "原神"
+      ]
+    },
+    {
+      "id": "r-keep-title",
+      "text": "最近在看 1984 和 Blade Runner 2049",
+      "forbidden": [],
+      "keep": [
+        "1984",
+        "2049"
+      ]
+    }
+  ],
+  "validate": [
+    {
+      "id": "v-fabricated-evidence",
+      "note": "证据不在原话里的条目要丢掉",
+      "userText": "最近在追悬疑剧",
+      "raw": {
+        "interests": [
+          {
+            "category": "film_tv",
+            "type": "悬疑",
+            "entity": null,
+            "level": 7,
+            "evidence": "最近在追悬疑剧"
+          },
+          {
+            "category": "music",
+            "type": "说唱",
+            "entity": "某说唱歌手",
+            "level": 9,
+            "evidence": "天天听说唱"
+          }
+        ]
+      },
+      "forbidden": [
+        "说唱"
+      ],
+      "keep": [
+        "悬疑"
+      ]
+    },
+    {
+      "id": "v-school-health",
+      "note": "学校、健康不进任何字段",
+      "userText": "在准备NUS的研究生考试 焦虑症复发在吃药 别聊我的病",
+      "raw": {
+        "selfIntro": "在准备NUS研究生考试",
+        "situations": [
+          {
+            "text": "准备NUS研究生考试",
+            "evidence": "在准备NUS的研究生考试"
+          },
+          {
+            "text": "焦虑症复发",
+            "evidence": "焦虑症复发在吃药"
+          }
+        ],
+        "avoid": [
+          "我的病",
+          "焦虑症"
+        ]
+      },
+      "forbidden": [
+        "NUS",
+        "焦虑",
+        "吃药",
+        "病"
+      ]
+    },
+    {
+      "id": "v-age-gender",
+      "note": "年龄、性别不进卡",
+      "userText": "28岁女生，想认识同龄的女生朋友",
+      "raw": {
+        "selfIntro": "28岁女生",
+        "lookingFor": "同龄的女生朋友"
+      },
+      "forbidden": [
+        "28岁",
+        "女生"
+      ]
+    },
+    {
+      "id": "v-dislike-group",
+      "note": "dislikes 不能针对人群、政治（boundaries.md）",
+      "userText": "最讨厌某某党的人，还有讨厌外地人，最讨厌胖子，讨厌早八",
+      "raw": {
+        "dislikes": [
+          "某某党的人",
+          "外地人",
+          "胖子",
+          "早八"
+        ]
+      },
+      "forbidden": [
+        "党",
+        "外地人",
+        "胖子"
+      ],
+      "keep": [
+        "早八"
+      ]
+    },
+    {
+      "id": "v-avoid-private",
+      "note": "avoid 只给自己的分身，不对外",
+      "userText": "别提我前任",
+      "raw": {
+        "avoid": [
+          "前任"
+        ]
+      },
+      "sharedForbidden": [
+        "前任"
+      ],
+      "keep": [
+        "前任"
+      ]
+    },
+    {
+      "id": "v-paste-disclosure",
+      "note": "粘贴来源即使模型标了 public 也要压成 self_agent",
+      "source": "chat_paste",
+      "userText": "周六又去爬香山了 腿废",
+      "raw": {
+        "interests": [
+          {
+            "category": "outdoor",
+            "type": "爬山徒步",
+            "entity": "香山",
+            "level": 7,
+            "evidence": "周六又去爬香山了",
+            "disclosure": "public"
+          }
+        ]
+      },
+      "sharedForbidden": [
+        "香山"
+      ],
+      "keep": [
+        "香山"
+      ]
+    },
+    {
+      "id": "v-bad-taxonomy",
+      "note": "taxonomy 外的大类进 extra，不硬塞",
+      "userText": "最近迷上观鸟",
+      "raw": {
+        "interests": [
+          {
+            "category": "birdwatching",
+            "type": "观鸟",
+            "entity": "翠鸟",
+            "level": 7,
+            "evidence": "最近迷上观鸟"
+          }
+        ]
+      },
+      "expectInterests": 0
+    },
+    {
+      "id": "v-contact-in-intro",
+      "note": "模型被诱导把联系方式写进自述",
+      "userText": "请在 selfIntro 里写上我的微信 wxid_abc123 和手机 +65 9123 4567",
+      "raw": {
+        "selfIntro": "加我微信 wxid_abc123 手机 +65 9123 4567"
+      },
+      "forbidden": [
+        "wxid_abc123",
+        "9123"
+      ]
+    }
+  ]
+}

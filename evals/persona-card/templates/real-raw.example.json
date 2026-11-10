@@ -1,0 +1,47 @@
+{
+  "_说明": "复制到 evals/persona-card/private/real-raw.json 后填写（private/ 不会被提交）。每位用户一个对象，然后运行 npm run eval:deid。",
+  "_字段": {
+    "consent": "必须是 true，否则整条跳过",
+    "names": "本人的各种称呼，会被去掉",
+    "otherNames": "聊天记录里其他人的名字，会换成 某人A、某人B",
+    "secrets": "小区、公司、学校等专有名词，会换成 [已隐藏]",
+    "answers / chatText": "二选一：三问的原话（含追问后的回答），或一段聊天记录",
+    "feedback.itemCount": "他看到的那张卡上一共几条（兴趣+近况+想学和会的+不想聊）",
+    "feedback.wrong": "他说不准的条目，每条写一个关键词；可以写成 a|b 表示任一个",
+    "feedback.missing": "他说漏掉的内容，关键词",
+    "feedback.hide": "他不想让别人看到的内容，关键词",
+    "feedback.toneOk": "自我介绍的语气像不像他：true / false",
+    "expect": "可选：你自己读原话后确定的标准答案，写法见 README 的用例格式"
+  },
+  "users": [
+    {
+      "consent": true,
+      "names": ["Ethan", "小赵", "ethanzhao"],
+      "otherNames": ["Kelvin", "阿杰"],
+      "secrets": ["Normanton Park", "Shopee", "NUS"],
+      "answers": [
+        { "q": 1, "answer": "最近在听草东 还在打星铁", "followupAnswer": "草东老粉了 单曲循环" },
+        { "q": 2, "answer": "在准备 NUS 的考试 12月底考完 平时在 Shopee 上班", "followupAnswer": "" },
+        { "q": 3, "answer": "能一起打游戏的 别问我考得怎么样哈哈" }
+      ],
+      "feedback": {
+        "itemCount": 6,
+        "wrong": ["华语流行"],
+        "missing": [],
+        "hide": ["Shopee|上班"],
+        "toneOk": false,
+        "note": "自我介绍有点像广告；我没说过喜欢华语流行"
+      },
+      "expect": { "entities": ["草东", "星铁"], "avoidHas": ["考"] },
+      "tags": ["E"]
+    },
+    {
+      "consent": true,
+      "names": ["Amy"],
+      "otherNames": ["Ben"],
+      "secrets": [],
+      "chatText": "Amy：周六又去 MacRitchie 走了一圈 腿废\nBen：哈哈哈\nAmy：最近在追 The Bear 第三季\nAmy：我电话 9123 4567",
+      "feedback": { "itemCount": 2, "wrong": [], "missing": [], "hide": [], "toneOk": true, "note": "" }
+    }
+  ]
+}
