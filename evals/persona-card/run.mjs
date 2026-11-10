@@ -24,7 +24,7 @@ import { runChecks } from "./lib/checks.mjs";
 import { createJudge, judgeOne, cardForJudge, DIMS, DIM_NAMES } from "./lib/judge.mjs";
 import { summarize, renderReport } from "./lib/report.mjs";
 import { exportHuman } from "./lib/human.mjs";
-import { CONFIG, DATASET_DIR, RESULTS_DIR, ROOT_DIR, loadEnv, readJSONL, writeJSONL, createDiskCache, pool, parseArgs, stamp, pct, fix } from "./lib/util.mjs";
+import { CONFIG, DATASET_DIR, RESULTS_DIR, ROOT_DIR, loadEnv, readJSONL, writeJSONL, createDiskCache, pool, parseArgs, stamp, pct } from "./lib/util.mjs";
 
 loadEnv();
 const args = parseArgs(process.argv.slice(2));
@@ -34,7 +34,7 @@ const label = String(args.label || (mock ? "mock" : "run")).replace(/[^\w一-龥
 
 // ---------- 用例 ----------
 export function loadCases({ sets, ids, tag, limit } = {}) {
-  const files = fs.readdirSync(DATASET_DIR).filter((f) => f.endsWith(".jsonl") && !f.includes(".example."));
+  const files = fs.readdirSync(DATASET_DIR).filter((f) => f.endsWith(".jsonl") && !f.includes(".example.") && f !== "followup.jsonl");
   let cases = files.flatMap((f) => readJSONL(path.join(DATASET_DIR, f)).map((c) => ({ set: f.replace(/\.jsonl$/, ""), ...c })));
   const seen = new Set();
   for (const c of cases) {
@@ -148,7 +148,7 @@ async function main() {
 
   console.log("");
   for (const g of summary.gates) console.log(`  ${g.ok == null ? "·" : g.ok ? "✓" : "✗"} ${g.name.padEnd(16, "　")} ${g.shown}（${g.targetShown}）`);
-  console.log(`  用例通过率 ${pct(summary.passRate)}　忠实 ${fix(summary.judge.faithfulness.mean)} · 语气 ${fix(summary.judge.tone.mean)} · 隐私 ${fix(summary.judge.privacy.mean)}`);
+  console.log(`  用例通过率 ${pct(summary.passRate)}　卡上共 ${summary.items.total} 条：对得上 ${summary.items.ok}，走样 ${summary.items.distorted}，没有依据 ${summary.items.unsupported}`);
   console.log(`\n报告：${path.relative(process.cwd(), path.join(dir, "report.md"))}`);
   if (args.strict && summary.gates.some((g) => g.ok === false)) process.exit(1);
 }

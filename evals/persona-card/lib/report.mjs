@@ -1,7 +1,7 @@
 // 汇总指标、对照门槛、写 report.md。
 
 import { CONFIG, mean, pct, fix, squash } from "./util.mjs";
-import { DIMS, DIM_NAMES } from "./judge.mjs";
+import { DIMS, DIM_NAMES, TONE_FLAGS } from "./judge.mjs";
 
 const sum = (xs) => xs.reduce((a, b) => a + (b || 0), 0);
 const ratio = (a, b) => (b ? a / b : null);
@@ -53,6 +53,23 @@ export function summarize(rows) {
   }
 
   const human = main.filter((r) => r.human);
+  // 逐条判断汇总：卡上一共多少条、裁判判 ok / 走样 / 没依据各多少
+  const fItems = main.flatMap((r) => r.judge?.faithfulness?.detail?.items || []).filter((x) => x.verdict);
+  const fJudged = main.filter((r) => r.judge?.faithfulness?.score != null);
+  const countV = (v) => fItems.filter((x) => x.verdict === v).length;
+  const passOf = (d) => {
+    const xs = judged(d);
+    return ratio(xs.filter((x) => x >= CONFIG.pass[d]).length, xs.length);
+  };
+  const toneHits = {};
+  for (const r of main) for (const k of r.judge?.tone?.detail?.hits || []) toneHits[k] = (toneHits[k] || 0) + 1;
+  const privacyTypes = {};
+  for (const r of main) for (const v of r.judge?.privacy?.detail?.violations || []) privacyTypes[v.type] = (privacyTypes[v.type] || 0) + 1;
+  const judgeErrors = main.flatMap((r) => DIMS.filter((d) => r.judge?.[d]?.error).map((d) => `${r.id}/${d}`));
+  // 真实用户看过线上那张卡后的反馈（和这次运行生成的卡无关，是固定的参照）
+  const fb = human.map((r) => r.human);
+  const fbItems = sum(fb.map((h) => h.itemCount));
+  const fbTone = fb.filter((h) => typeof h.toneOk === "boolean");
   const s = {
     cases: main.length,
     sets: byGroup((r) => r.set),
@@ -70,6 +87,32 @@ export function summarize(rows) {
         return [d, { mean: mean(xs), n: xs.length, dist: [1, 2, 3, 4, 5].map((k) => xs.filter((x) => x === k).length) }];
       })
     ),
+    items: {
+      total: fItems.length,
+      ok: countV("ok"),
+      distorted: countV("distorted"),
+      unsupported: countV("unsupported"),
+      missedMajor: sum(main.map((r) => (r.judge?.faithfulness?.detail?.missed || []).filter((m) => m.major).length)),
+      missedMinor: sum(main.map((r) => (r.judge?.faithfulness?.detail?.missed || []).filter((m) => !m.major).length)),
+    },
+    itemAccuracy: ratio(countV("ok"), fItems.length),
+    fabricationCaseRate: ratio(fJudged.filter((r) => r.judge.faithfulness.detail.items.some((x) => x.verdict === "unsupported")).length, fJudged.length),
+    tonePassRate: passOf("tone"),
+    privacyPassRate: passOf("privacy"),
+    toneHits,
+    privacyTypes,
+    judgeErrors,
+    userFeedback: human.length
+      ? {
+          users: human.length,
+          itemAccuracy: fbItems ? 1 - sum(fb.map((h) => h.wrongCount)) / fbItems : null,
+          toneOk: fbTone.filter((h) => h.toneOk).length,
+          toneAsked: fbTone.length,
+          wrongFixed: ratio(m("userWrongFixed"), m("userWrong")),
+          missingFixed: ratio(m("userMissingFixed"), m("userMissing")),
+          hideFixed: ratio(m("userHideFixed"), m("userHide")),
+        }
+      : null,
     checkStats,
     droppedReasons,
     stability: stability.length ? { pairs: stability.length, meanJaccard: mean(stability), parseRateAll: ratio(rows.filter((r) => r.metrics?.parsed).length, rows.length) } : null,
@@ -93,9 +136,10 @@ export function gates(s) {
     ["硬规则失败的用例数", s.hardFailCases, g.hardFailCases, "<=", (x) => String(x)],
     ["证据是原话的比例（校验前）", s.rawEvidenceRate, g.rawEvidenceRate, ">=", pct],
     ["预期具体对象召回率", s.entityRecall, g.entityRecall, ">=", pct],
-    ["忠实度均分", s.judge.faithfulness.mean, g.faithfulnessMean, ">=", fix],
-    ["隐私均分", s.judge.privacy.mean, g.privacyMean, ">=", fix],
-    ["语气均分", s.judge.tone.mean, g.toneMean, ">=", fix],
+    ["条目准确率（裁判逐条判）", s.itemAccuracy, g.itemAccuracy, ">=", pct],
+    ["出现“没有依据”条目的用例占比", s.fabricationCaseRate, g.fabricationCaseRate, "<=", pct],
+    ["语气通过率", s.tonePassRate, g.tonePassRate, ">=", pct],
+    ["隐私通过率（裁判）", s.privacyPassRate, g.privacyPassRate, ">=", pct],
   ];
   return rows.map(([name, value, target, op, f]) => ({
     name,
@@ -151,7 +195,23 @@ export function renderReport(meta, s, rows) {
   const allOk = tagRows.filter(([, v]) => v.passed === v.n).map(([k]) => k);
   if (allOk.length) L.push(`全部通过的标签：${allOk.join("、")}`, "");
 
-  L.push("## 裁判打分分布");
+  L.push("## 裁判逐条判断");
+  L.push("");
+  L.push(`- **忠实：** 卡上共 ${s.items.total} 条，对得上 ${s.items.ok}，走样 ${s.items.distorted}，没有依据 ${s.items.unsupported}；另有重要遗漏 ${s.items.missedMajor} 处，次要遗漏 ${s.items.missedMinor} 处。`);
+  L.push(`- **语气：** ${Object.keys(s.toneHits).length ? Object.entries(s.toneHits).map(([k, v]) => `${TONE_FLAGS[k]?.name || k} ${v} 张`).join("，") : "没有命中任何一项"}。`);
+  L.push(`- **隐私：** ${Object.keys(s.privacyTypes).length ? Object.entries(s.privacyTypes).map(([k, v]) => `${k} ${v} 处`).join("，") : "裁判没有发现违规项"}。`);
+  if (s.judgeErrors.length) L.push(`- ⚠️ 裁判有 ${s.judgeErrors.length} 次没给出有效判断（不计入上面的数字）：${s.judgeErrors.join("、")}`);
+  L.push("");
+  if (s.userFeedback) {
+    const u = s.userFeedback;
+    L.push("## 真实用户");
+    L.push("");
+    L.push(`${u.users} 位用户看过线上那张卡后的反馈（固定参照，不随这次运行变化）：本人逐项准确率 ${pct(u.itemAccuracy)}（README 的 R1 门槛是 70%），${u.toneAsked} 人里 ${u.toneOk} 人觉得语气像自己。`);
+    L.push("");
+    L.push(`这次运行对照他们的反馈：说不准的内容已不再出现 ${pct(u.wrongFixed)}，说漏掉的内容已补上 ${pct(u.missingFixed)}，想藏的内容没有对外 ${pct(u.hideFixed)}。`);
+    L.push("");
+  }
+  L.push("## 由逐条判断折算的分数分布");
   L.push("");
   L.push("| 维度 | 均分 | 1 | 2 | 3 | 4 | 5 |");
   L.push("|---|---|---|---|---|---|---|");
@@ -199,12 +259,6 @@ export function renderReport(meta, s, rows) {
     L.push("## 稳定性");
     L.push("");
     L.push(`同一输入重复生成 ${meta.repeat} 次：兴趣集合平均 Jaccard ${fix(s.stability.meanJaccard)}（1 表示每次抽到的兴趣完全一样），所有次数的 JSON 解析成功率 ${pct(s.stability.parseRateAll)}。`);
-    L.push("");
-  }
-  if (s.humanCases) {
-    L.push("## 人工分");
-    L.push("");
-    L.push(`有 ${s.humanCases} 条用例带人工分。用 \`npm run eval:calibrate -- ${meta.dirRel}\` 看裁判和人工的一致性。`);
     L.push("");
   }
   L.push("## 成本");

@@ -69,10 +69,21 @@ users.forEach((u, idx) => {
   } else {
     c.answers = (u.answers || []).map((a) => ({ q: a.q, answer: scrub(a.answer, opts), ...(a.followupAnswer ? { followupAnswer: scrub(a.followupAnswer, opts) } : {}) }));
   }
-  if (u.expect) c.expect = u.expect;
+  // 本人看过线上那张卡之后的反馈 → 变成这条用例的检查项（R1/R2/R3，见 lib/checks.mjs）和校准用的 human 字段
+  const f = u.feedback || {};
+  const list = (v) => (Array.isArray(v) ? v : []).map((x) => scrub(x, opts)).filter(Boolean);
+  const expect = { ...(u.expect || {}) };
+  if (list(f.wrong).length) expect.userWrong = list(f.wrong);
+  if (list(f.missing).length) expect.userMissing = list(f.missing);
+  if (list(f.hide).length) expect.userHide = list(f.hide);
+  if (Object.keys(expect).length) c.expect = expect;
   if (u.feedback) {
-    const f = u.feedback;
-    c.human = { faithfulness: f.faithfulness ?? null, tone: f.tone ?? null, privacy: f.privacy ?? null, note: scrub(f.note || "", opts) };
+    c.human = {
+      itemCount: Number(f.itemCount) || 0,
+      wrongCount: Number.isFinite(Number(f.wrongCount)) ? Number(f.wrongCount) : list(f.wrong).length,
+      ...(typeof f.toneOk === "boolean" ? { toneOk: f.toneOk } : {}),
+      note: scrub(f.note || "", opts),
+    };
   }
   c.note = `第 ${idx + 1} 位真实用户（脱敏）`;
   cases.push(c);

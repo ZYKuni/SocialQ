@@ -1,68 +1,81 @@
-// 裁判校准：比较 LLM 裁判和人工打分。npm run eval:calibrate -- <结果目录>
+// 裁判校准：npm run eval:calibrate -- [结果目录]
 //
-// 人工分有两个来源，都会用上：
-//   1. 结果目录里填好的 human-review.csv（npm run eval:card -- --export-human 10 导出）
-//   2. 用例自带的 human 字段（真实用户自己给卡打的分，见 dataset/real.example.jsonl）
+// 把人工逐条填的 1/0（human-review.csv，由 npm run eval:card -- --export-human 12 导出）和裁判的逐条结论对答案。
+// 真实用户自带的“语气像不像我”（human.toneOk）也会用上。
 //
-// 判读：某个维度“相差不超过 1 分”的比例低于 80%，或者裁判系统性偏高/偏低超过 0.5 分，就先改 rubric 再信它的分。
+// 看两个数：
+//   一致率   裁判和人结论相同的比例
+//   漏判率   人说有问题的里面，裁判却放过了多少。这是危险的那一种错，比误杀重要
+// 门槛在 config.json 的 calibration。不达标就改 rubrics/ 里对应的标准，重跑再校准。
 
 import fs from "node:fs";
 import path from "node:path";
 import { readHumanCSV } from "./lib/human.mjs";
-import { DIMS, DIM_NAMES } from "./lib/judge.mjs";
-import { readJSONL, mean, pct, fix, RESULTS_DIR, parseArgs } from "./lib/util.mjs";
+import { DIM_NAMES } from "./lib/judge.mjs";
+import { readJSONL, pct, RESULTS_DIR, CONFIG, parseArgs } from "./lib/util.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 let dir = args._[0];
 if (!dir) {
-  const all = fs.existsSync(RESULTS_DIR) ? fs.readdirSync(RESULTS_DIR).filter((d) => fs.existsSync(path.join(RESULTS_DIR, d, "results.jsonl"))).sort() : [];
-  if (!all.length) throw new Error("还没有评测结果，先跑 npm run eval:card");
+  const all = fs.existsSync(RESULTS_DIR) ? fs.readdirSync(RESULTS_DIR).filter((d) => fs.existsSync(path.join(RESULTS_DIR, d, "human-review.csv"))).sort() : [];
+  if (!all.length) {
+    console.log("没有找到 human-review.csv。先跑 npm run eval:card -- --export-human 12，填好 ok 列再来。");
+    process.exit(0);
+  }
   dir = path.join(RESULTS_DIR, all.at(-1));
 }
 const rows = readJSONL(path.join(dir, "results.jsonl")).filter((r) => r.repeat === 0);
 const byId = new Map(rows.map((r) => [r.id, r]));
 
-const pairs = []; // { id, dim, judge, human, from, note }
+// 每一对：{ group, id, what, human(ok?), judge(ok?), judgeWhy, note }
+const pairs = [];
 const csv = path.join(dir, "human-review.csv");
 if (fs.existsSync(csv)) {
   for (const h of readHumanCSV(csv)) {
     const r = byId.get(h.id);
     if (!r) continue;
-    for (const d of DIMS) if (h[d] != null && r.judge?.[d]?.score != null) pairs.push({ id: h.id, dim: d, judge: r.judge[d].score, human: h[d], from: "抽查", note: h.note });
+    const f = r.judge?.faithfulness;
+    if (h.kind === "item") {
+      const it = f?.detail?.items?.find((x) => x.n === h.n);
+      if (it?.verdict) pairs.push({ group: "faithfulness", id: h.id, what: it.text, human: h.ok, judge: it.verdict === "ok", judgeWhy: it.why, note: h.note });
+    } else if (h.kind === "missed") {
+      if (f?.score != null) pairs.push({ group: "missed", id: h.id, what: "重要遗漏", human: h.ok, judge: !f.detail.missed.some((m) => m.major), judgeWhy: f.detail.missed.map((m) => m.what).join("、"), note: h.note });
+    } else if (h.kind === "tone" || h.kind === "privacy") {
+      const j = r.judge?.[h.kind];
+      if (j?.score != null) pairs.push({ group: h.kind, id: h.id, what: DIM_NAMES[h.kind], human: h.ok, judge: j.score >= CONFIG.pass[h.kind], judgeWhy: j.reason, note: h.note });
+    }
   }
 }
 for (const r of rows) {
-  for (const d of DIMS) {
-    const hv = r.human?.[d];
-    if (Number.isFinite(hv) && r.judge?.[d]?.score != null) pairs.push({ id: r.id, dim: d, judge: r.judge[d].score, human: hv, from: "本人", note: r.human?.note || "" });
-  }
+  const j = r.judge?.tone;
+  if (typeof r.human?.toneOk === "boolean" && j?.score != null) pairs.push({ group: "tone", id: r.id, what: "语气（本人反馈）", human: r.human.toneOk, judge: j.score >= CONFIG.pass.tone, judgeWhy: j.reason, note: r.human.note || "" });
 }
 if (!pairs.length) {
-  console.log(`没有可比较的人工分。先在 ${csv} 里填分，或者给真实用户用例加 human 字段。`);
+  console.log(`没有可比较的人工结论。在 ${csv} 的 ok 列填 1 或 0 再运行。`);
   process.exit(0);
 }
 
-const lines = [`# 裁判校准：${path.basename(dir)}`, "", "| 维度 | 样本 | 完全一致 | 相差≤1 | 平均绝对误差 | 裁判偏高 | 判读 |", "|---|---|---|---|---|---|---|"];
-for (const d of DIMS) {
-  const p = pairs.filter((x) => x.dim === d);
+const NAMES = { faithfulness: "忠实（逐条）", missed: "遗漏", tone: "语气", privacy: "隐私" };
+const { minAgreement, maxMissRate } = CONFIG.calibration;
+const L = [`# 裁判校准：${path.basename(dir)}`, "", `门槛：一致率 ≥ ${pct(minAgreement)}，漏判率 ≤ ${pct(maxMissRate)}。样本少于 10 的维度只作参考。`, "", "| 维度 | 样本 | 一致率 | 人说有问题 | 其中裁判放过（漏判） | 裁判误杀 | 判读 |", "|---|---|---|---|---|---|---|"];
+for (const g of Object.keys(NAMES)) {
+  const p = pairs.filter((x) => x.group === g);
   if (!p.length) continue;
-  const within1 = p.filter((x) => Math.abs(x.judge - x.human) <= 1).length / p.length;
-  const bias = mean(p.map((x) => x.judge - x.human));
-  const ok = within1 >= 0.8 && Math.abs(bias) <= 0.5;
-  lines.push(
-    `| ${DIM_NAMES[d]} | ${p.length} | ${pct(p.filter((x) => x.judge === x.human).length / p.length)} | ${pct(within1)} | ${fix(mean(p.map((x) => Math.abs(x.judge - x.human))))} | ${bias > 0 ? "+" : ""}${fix(bias)} | ${ok ? "✅ 可信" : "❌ 先改 rubric"} |`
-  );
+  const agree = p.filter((x) => x.human === x.judge).length / p.length;
+  const bad = p.filter((x) => !x.human);
+  const missed = bad.filter((x) => x.judge).length;
+  const overkill = p.filter((x) => x.human && !x.judge).length;
+  const missRate = bad.length ? missed / bad.length : null;
+  const verdict = p.length < 10 ? "⚪ 样本太少" : agree >= minAgreement && (missRate == null || missRate <= maxMissRate) ? "✅ 可信" : "❌ 先改 rubric";
+  L.push(`| ${NAMES[g]} | ${p.length} | ${pct(agree)} | ${bad.length} | ${missed}${missRate == null ? "" : `（${pct(missRate)}）`} | ${overkill} | ${verdict} |`);
 }
-lines.push("", "## 分歧最大的（相差 ≥ 2 分）", "");
-const big = pairs.filter((x) => Math.abs(x.judge - x.human) >= 2).sort((a, b) => Math.abs(b.judge - b.human) - Math.abs(a.judge - a.human));
-if (!big.length) lines.push("没有。");
-for (const x of big) {
-  const r = byId.get(x.id);
-  lines.push(`- **${x.id}** ${DIM_NAMES[x.dim]}：裁判 ${x.judge}，人工 ${x.human}（${x.from}）${x.note ? `，备注：${x.note}` : ""}`);
-  lines.push(`  - 裁判理由：${r.judge[x.dim].reason}`);
-}
-lines.push("", "看分歧时问自己：是裁判没看懂 rubric（改 rubric 措辞、加例子），还是 rubric 本身没写到这种情况（加一条规则）？改完重跑 `npm run eval:card` 再校准一次。");
+const show = (x) => `- **${x.id}** ${x.what}${x.note ? `　人工备注：${x.note}` : ""}${x.judgeWhy ? `　裁判：${x.judgeWhy}` : ""}`;
+const misses = pairs.filter((x) => !x.human && x.judge);
+const kills = pairs.filter((x) => x.human && !x.judge);
+L.push("", `## 裁判放过、人说有问题的（${misses.length}）`, "", "这是要优先处理的：rubric 里没写到这种情况，或者写得不够明确。", "", ...(misses.length ? misses.map(show) : ["没有。"]));
+L.push("", `## 裁判判有问题、人说没问题的（${kills.length}）`, "", "裁判太严：在 rubric 的“不算问题”里补一条。", "", ...(kills.length ? kills.map(show) : ["没有。"]));
+L.push("", "改完 rubric 后重跑 `npm run eval:card`（rubric 变了缓存会自动失效），再导出、再校准一次。只需要重看这次有分歧的条目。");
 const out = path.join(dir, "calibration.md");
-fs.writeFileSync(out, lines.join("\n") + "\n");
-console.log(lines.slice(0, 2 + 2 + DIMS.length).join("\n"));
+fs.writeFileSync(out, L.join("\n") + "\n");
+console.log(L.slice(0, 6 + Object.keys(NAMES).length).join("\n"));
 console.log(`\n详细：${out}`);

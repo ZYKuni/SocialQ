@@ -1,0 +1,76 @@
+# 分身卡评测。改了生成相关的代码、prompt、规则或用例时自动跑，也可以在 Actions 页面手动点 Run workflow。
+# 规则层和演示模式不需要密钥；真实模型评测需要在仓库 Settings → Secrets and variables → Actions 里加 LLM_API_KEY。
+# 只跑入库的合成和对抗用例；真实用户数据不在仓库里，只在本机跑。
+name: 分身卡评测
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: 这次运行的名字
+        default: ci
+  pull_request:
+    paths:
+      - lib/agents.mjs
+      - lib/socialState.mjs
+      - lib/privacy.mjs
+      - lib/llm.mjs
+      - skills/**
+      - evals/persona-card/**
+      - .github/workflows/eval-card.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-card-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_MODEL: ${{ vars.LLM_MODEL }}
+      JUDGE_MODEL: ${{ vars.JUDGE_MODEL }}
+      LABEL: ${{ inputs.label || 'ci' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 规则层（不调模型）
+        run: |
+          {
+            echo "## 规则层"
+            echo '```'
+            node evals/persona-card/guards.mjs
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 流程自检（演示模式）
+        run: |
+          node scripts/check-persona.mjs
+          node evals/persona-card/run.mjs --mock --label ci-mock
+
+      - name: 真实模型评测
+        if: env.LLM_API_KEY != ''
+        run: |
+          node evals/persona-card/run.mjs --label real-run
+          node evals/persona-card/followup.mjs
+          echo "运行名：$LABEL" >> "$GITHUB_STEP_SUMMARY"
+          cat evals/persona-card/results/*-real-run/report.md >> "$GITHUB_STEP_SUMMARY"
+          cat evals/persona-card/results/*-followup/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 没有密钥时的提示
+        if: env.LLM_API_KEY == ''
+        run: echo "没有配置 LLM_API_KEY，这次只跑了规则层和演示模式。" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-card-results
+          path: evals/persona-card/results/
+          retention-days: 30

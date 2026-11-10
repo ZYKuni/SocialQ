@@ -31,7 +31,7 @@ if (A.meta.judgeModel !== B.meta.judgeModel) L.push(`- ⚠️ 两次的裁判模
 L.push("", "| 指标 | 旧 | 新 | |", "|---|---|---|---|");
 for (const g of B.summary.gates) {
   const old = A.summary.gates.find((x) => x.name === g.name);
-  const better = old?.value == null || g.value == null ? "" : g.value === old.value ? "＝" : (g.name.includes("失败") ? g.value < old.value : g.value > old.value) ? "⬆️" : "⬇️";
+  const better = old?.value == null || g.value == null ? "" : g.value === old.value ? "＝" : (/失败|没有依据/.test(g.name) ? g.value < old.value : g.value > old.value) ? "⬆️" : "⬇️";
   L.push(`| ${g.name} | ${old?.shown ?? "—"} | ${g.shown} | ${better} |`);
 }
 L.push(`| 用例通过率 | ${pct(A.summary.passRate)} | ${pct(B.summary.passRate)} | |`);
@@ -41,6 +41,19 @@ const oldById = new Map(A.rows.map((r) => [r.id, r]));
 const common = B.rows.filter((r) => oldById.has(r.id));
 const regress = common.filter((r) => oldById.get(r.id).pass && !r.pass);
 const fixed = common.filter((r) => !oldById.get(r.id).pass && r.pass);
+// 符号检验：只看“通过 ↔ 失败”翻转的用例。翻转很少、或好坏差不多时，差异可能只是模型的随机波动。
+const signP = (b, w) => {
+  const n = b + w;
+  if (!n) return 1;
+  const choose = (n, k) => { let c = 1; for (let i = 1; i <= k; i += 1) c = (c * (n - k + i)) / i; return c; };
+  let tail = 0;
+  for (let k = 0; k <= Math.min(b, w); k += 1) tail += choose(n, k);
+  return Math.min(1, (2 * tail) / 2 ** n);
+};
+const p = signP(fixed.length, regress.length);
+const verdict = !fixed.length && !regress.length ? "没有用例翻转，两版在通过与否上没有差别。" : p < 0.1 ? `差异不太像随机波动（符号检验 p=${p.toFixed(2)}），可以认为新版${fixed.length > regress.length ? "更好" : "更差"}。` : `翻转太少或好坏相当（符号检验 p=${p.toFixed(2)}），这个差异可能只是随机波动。想确认就加 --judge 做两两比较，或用 --repeat 3 重跑。`;
+L.push(`## 结论：变好 ${fixed.length} 条，变差 ${regress.length} 条，共同用例 ${common.length} 条`, "", verdict, "");
+if (A.meta.fingerprint === B.meta.fingerprint && A.meta.model === B.meta.model) L.push("两次的生成代码指纹和模型都一样：这里看到的任何变化都是模型的随机性（或裁判标准变了），正好可以当作噪声的大小。", "");
 L.push(`## 变差的用例（${regress.length}）`, "");
 for (const r of regress) L.push(`- **${r.id}**：${r.failReasons.join("；")}`);
 L.push("", `## 变好的用例（${fixed.length}）`, "");
@@ -68,5 +81,5 @@ if (args.judge) {
 
 const out = path.join(B.dir, "compare.md");
 fs.writeFileSync(out, L.join("\n"));
-console.log(L.slice(0, 16).join("\n"));
+console.log(L.slice(0, 22).join("\n"));
 console.log(`\n详细：${out}`);

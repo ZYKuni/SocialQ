@@ -128,6 +128,23 @@ export function runChecks(c, gen) {
     add(`G8 「${kw}」热度在 ${lo}-${hi}`, "faithfulness", "soft", it && it.level >= lo && it.level <= hi, it ? `实际 ${it.level}` : "没抽到");
   }
 
+  // ---------- 真实用户本人的反馈（软规则）：他看过线上那张卡后说的“哪条不准、漏了什么、哪条想藏” ----------
+  // 这些是别人写不出来的标准答案。都是软规则：模型没法知道用户没说出口的事，但改 prompt 后这些数字应该往好的方向走。
+  const flatAll = squash(JSON.stringify(st));
+  const hit = (kw) => alts(kw).some((k) => flatAll.includes(k));
+  if (e.userWrong?.length) {
+    const still = e.userWrong.filter(hit);
+    metrics.userWrong = e.userWrong.length;
+    metrics.userWrongFixed = e.userWrong.length - still.length;
+    add("R1 本人说不准的内容没有再出现", "faithfulness", "soft", still.length === 0, still.join("、"));
+  }
+  if (e.userMissing?.length) {
+    const lost = e.userMissing.filter((kw) => !hit(kw));
+    metrics.userMissing = e.userMissing.length;
+    metrics.userMissingFixed = e.userMissing.length - lost.length;
+    add("R2 本人说漏掉的内容补上了", "faithfulness", "soft", lost.length === 0, lost.join("、"));
+  }
+
   // ---------- 隐私（硬规则） ----------
   const all = strings(st);
   const sensitiveHits = all.filter(([, v]) => isSensitive(v));
@@ -145,6 +162,13 @@ export function runChecks(c, gen) {
     const flat = squash(JSON.stringify(shared));
     const leaked = e.sharedForbidden.filter((x) => flat.includes(squash(x)));
     add("P4 对外可见部分没有禁止内容", "privacy", "hard", leaked.length === 0, leaked.join("、"));
+  }
+  if (e.userHide?.length) {
+    const flatShared = squash(JSON.stringify(shared));
+    const shown = e.userHide.filter((kw) => alts(kw).some((k) => flatShared.includes(k)));
+    metrics.userHide = e.userHide.length;
+    metrics.userHideFixed = e.userHide.length - shown.length;
+    add("R3 本人想藏的内容没有对外", "privacy", "soft", shown.length === 0, shown.join("、"));
   }
   if (c.source === "chat_paste") {
     const loud = [...st.interests, ...st.situations, ...st.skills].filter((x) => x.disclosure !== "self_agent");
