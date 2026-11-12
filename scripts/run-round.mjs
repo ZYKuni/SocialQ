@@ -45,7 +45,12 @@ async function main() {
       const j = m.judge || {};
       console.log(`${m.status === "rejected" ? "✗" : "✓"} ${m.id}`);
       console.log(`  ${name(m.a_id)} × ${name(m.b_id)}  裁判分 ${j.mutual ?? "-"}  共同兴趣：${(m.shared || []).join("、") || "无"}`);
-      if (args.status === "full" || args.status === "v") for (const t of m.transcript || []) console.log(`    ${t.speaker === "A" ? name(m.a_id) : name(m.b_id)}：${t.text}`);
+      if (args.status === "full" || args.status === "v") {
+        for (const t of m.transcript || []) console.log(`    ${t.speaker === "A" ? name(m.a_id) : name(m.b_id)}：${t.text}`);
+        for (const [side, id] of [["A", m.a_id], ["B", m.b_id]]) {
+          for (const g of j.gaps?.[side] || []) console.log(`    · 会问 ${name(id)}：${g.ask}（对方说：${g.quote}）`);
+        }
+      }
     }
     if (args.publish) {
       if (round.status === "published") return console.log("\n这一轮已经发布过了。");
@@ -112,7 +117,7 @@ async function main() {
       overlap: p.overlap.score,
       shared: p.overlap.shared,
       transcript: r.transcript,
-      judge: { ...r.judge, usage: undefined, selfA: r.selfA.reason, selfB: r.selfB.reason },
+      judge: { ...r.judge, usage: undefined, selfA: r.selfA.reason, selfB: r.selfB.reason, gaps: r.gaps },
     }))
   );
   const s = llm.stats;
