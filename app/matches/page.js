@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "../community-ui";
 import { STORE, saveSession } from "../components";
+import { GapAsk } from "../gap-ui";
 
 // 小区试点：本周配对。看两个分身聊了什么，决定想不想认识；双方都想认识时互相看到微信号。
 
@@ -27,6 +28,27 @@ export default function MatchesPage() {
       }
     })();
   }, [router]);
+
+  // 补一句 → 服务端按最新的卡生成补完的版本 → 存成新版本。撤回就把补之前的卡再存一次。
+  async function teach(question, text, matchId) {
+    const prev = me?.card;
+    const preview = await api("card/enrich", { method: "POST", body: { question, text, matchId } });
+    if (!preview.added?.length) return { added: [] };
+    const saved = await api("card", { method: "POST", body: { card: preview.card } });
+    setMe((m) => ({ ...m, card: saved.card }));
+    return {
+      added: preview.added,
+      note: "分身记住了，下一轮配对就会用上",
+      undo: prev
+        ? async () => {
+            const back = await api("card", { method: "POST", body: { card: prev } });
+            setMe((m) => ({ ...m, card: back.card }));
+          }
+        : null,
+    };
+  }
+
+  const openGaps = (data?.matches || []).reduce((n, m) => n + (m.gaps || []).filter((g) => !isDone(g.id)).length, 0);
 
   function updateMatch(next) {
     setData((d) => ({ ...d, matches: d.matches.map((m) => (m.id === next.id ? next : m)) }));
@@ -65,9 +87,11 @@ export default function MatchesPage() {
             第一轮还没开奖。每周三晚上统一配对{me?.members ? `，目前已有 ${me.members} 位邻居建好了分身` : ""}。开奖后组织者会在群里说一声。
           </Notice>
         )}
+        {me?.card && data && <TeachBox openGaps={openGaps} onTeach={(q, t) => teach(q, t, null)} />}
+
         {data?.round && data.matches.length === 0 && <Notice>这一轮没有给你配上邻居，下周三再来看看。</Notice>}
         {data?.matches.map((m) => (
-          <MatchCard key={m.id} match={m} onChange={updateMatch} onHide={(id) => setData((d) => ({ ...d, matches: d.matches.filter((x) => x.id !== id) }))} />
+          <MatchCard key={m.id} match={m} onTeach={me?.card ? teach : null} onChange={updateMatch} onHide={(id) => setData((d) => ({ ...d, matches: d.matches.filter((x) => x.id !== id) }))} />
         ))}
 
         {me?.user && <Settings me={me} onMe={setMe} onGone={() => {
@@ -84,7 +108,51 @@ function Notice({ children }) {
   return <p className="rounded-3xl bg-white p-5 text-sm leading-7 text-slate-600 shadow-sm">{children}</p>;
 }
 
-function MatchCard({ match, onChange, onHide }) {
+// 已经补过的问题记在本机，不再重复问（换设备会再出现一次，不影响什么）
+const DONE_KEY = "socialq.gapsDone";
+function isDone(id) {
+  try {
+    return JSON.parse(window.localStorage.getItem(DONE_KEY) || "[]").includes(id);
+  } catch {
+    return false;
+  }
+}
+function markDone(id) {
+  try {
+    const list = JSON.parse(window.localStorage.getItem(DONE_KEY) || "[]");
+    if (!list.includes(id)) window.localStorage.setItem(DONE_KEY, JSON.stringify([...list, id].slice(-200)));
+  } catch {
+    // 本机存不了也没关系，只是下次还会问
+  }
+}
+
+/** 页面顶部：让分身更懂你。提示还有几个问题没答，也可以随手补一句。 */
+function TeachBox({ openGaps, onTeach }) {
+  return (
+    <section className="space-y-3 rounded-3xl bg-slate-900 p-5 text-white shadow-sm">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-200/80">让分身更懂你</p>
+        <h2 className="mt-1 text-lg font-black leading-7">
+          {openGaps > 0 ? `这周你的分身被问住了 ${openGaps} 次` : "分身只知道你告诉过它的"}
+        </h2>
+        <p className="mt-1 text-xs leading-5 text-cyan-100/70">
+          {openGaps > 0 ? "在下面每段对话后面补一句，下一轮它就能接上，也更容易配到对路的人。" : "随手补一句，下一轮配对就会用上。只有配对对象能看到你补的内容。"}
+        </p>
+      </div>
+      <GapAsk
+        tone="dark"
+        gap={{ ask: "还有什么想让分身知道的？" }}
+        placeholder="最近在玩的、在追的、想一起做的事"
+        onSubmit={(text) => onTeach("还有什么想让分身知道的？", text)}
+      />
+    </section>
+  );
+}
+
+function MatchCard({ match, onChange, onHide, onTeach }) {
+  const [done, setDone] = useState(() => new Set());
+  useEffect(() => setDone(new Set((match.gaps || []).filter((g) => isDone(g.id)).map((g) => g.id))), [match.gaps]);
+  const gaps = (match.gaps || []).filter((g) => !done.has(g.id));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const { other } = match;
@@ -154,6 +222,25 @@ function MatchCard({ match, onChange, onHide }) {
           ))}
         </div>
       </details>
+
+      {onTeach && gaps.length > 0 && (
+        <div className="space-y-2 rounded-2xl bg-amber-50 p-3">
+          <p className="text-xs font-black text-amber-800">你的分身在这里卡住了 · 替它补一句</p>
+          {gaps.map((g) => (
+            <GapAsk
+              key={g.id}
+              gap={g}
+              otherName={other.nickname}
+              onSubmit={async (text) => {
+                const r = await onTeach(g.ask, text, match.id);
+                if (r.added?.length) markDone(g.id);
+                return r;
+              }}
+            />
+          ))}
+          <p className="text-[11px] leading-5 text-amber-700/80">只有你自己能看到这里。补的内容会进你的分身卡，配对对象能看到。</p>
+        </div>
+      )}
 
       {match.reasons.length > 0 && (
         <div className="text-xs leading-6 text-slate-500">

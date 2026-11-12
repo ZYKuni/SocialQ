@@ -4,6 +4,7 @@ import { extractPersona, extractState } from "@/lib/agents.mjs";
 import { prepareChatForLLM, redact } from "@/lib/privacy.mjs";
 import { normalizePersona } from "@/lib/persona.mjs";
 import { validateState, buildCard, mergeStates, todayISO, CARD_VERSION } from "@/lib/socialState.mjs";
+import { enrichCard } from "@/lib/gaps.mjs";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -22,6 +23,7 @@ export async function POST(request) {
   if (mode === "guided") return guided(body);
   if (mode === "paste") return paste(body);
   if (mode === "more") return more(body);
+  if (mode === "gap") return gap(body);
   if (String(chatText).trim().length < 20) {
     return NextResponse.json({ error: "聊天内容太少了，至少粘贴几句你自己发过的话" }, { status: 400 });
   }
@@ -128,6 +130,24 @@ async function paste(body) {
     return NextResponse.json({ persona, added, dropped, privacy: { ...prepared.report, fewMessages: !withTraits }, mode: llm.isMock ? "demo" : "live" });
   } catch (error) {
     console.error("persona paste error:", error.message);
+    return NextResponse.json({ error: "AI 服务暂时不可用，请稍后再试" }, { status: 502 });
+  }
+}
+
+/** 单人体验：分身在代聊里答不上来的问题，本人补一句 → 并进卡。卡已经确认过，补完不用重新确认。 */
+async function gap(body) {
+  const base = body.persona;
+  if (base?.cardVersion !== CARD_VERSION || !base.state) {
+    return NextResponse.json({ error: "缺少要补充的人格卡" }, { status: 400 });
+  }
+  const text = String(body.text || "").trim();
+  if (text.length < 2) return NextResponse.json({ error: "多写几个字吧" }, { status: 400 });
+  try {
+    const llm = createLLM({ config: getLLMConfig() });
+    const { card, added } = await enrichCard(llm, base, { question: String(body.question || ""), answer: text });
+    return NextResponse.json({ persona: card, added, mode: llm.isMock ? "demo" : "live" });
+  } catch (error) {
+    console.error("persona gap error:", error.message);
     return NextResponse.json({ error: "AI 服务暂时不可用，请稍后再试" }, { status: 502 });
   }
 }

@@ -3,7 +3,8 @@
 
 import assert from "node:assert/strict";
 import { createLLM } from "../lib/llm.mjs";
-import { decideFollowup, extractState, runAgentChat, judgePair } from "../lib/agents.mjs";
+import { decideFollowup, extractState, runAgentChat, judgePair, matchWithAgents } from "../lib/agents.mjs";
+import { gapsFromTranscript, enrichCard } from "../lib/gaps.mjs";
 import { validateState, buildCard, buildQuickState, isThin } from "../lib/socialState.mjs";
 import { normalizePersona, interestOverlap, renderPersona } from "../lib/persona.mjs";
 import { prepareChatForLLM } from "../lib/privacy.mjs";
@@ -154,6 +155,40 @@ await scenario("5. 速通卡进入匹配：粗筛能算出共同兴趣，代聊�
   assert.ok(renderPersona(full).includes("前任"), "自己的分身应该知道不聊什么");
   assert.ok(!full.interests.some((i) => i.name === "秘密游戏"), "粗筛用的旧字段也不应包含仅自己的内容");
   assert.equal(isThin(full.state, today), true, "只有 1 个对外可见的具体对象、没有近况，应算 thin");
+});
+
+await scenario("6. 从代聊补卡：找出分身答不上来的地方，本人补一句后并进卡，问题里的词不算原话", async () => {
+  // 规则版：取对方上一句当作问住分身的话
+  const t = [
+    { speaker: "A", text: "我平时打三角洲，你呢" },
+    { speaker: "B", text: "三角洲我没怎么接触过，你给我讲讲" },
+    { speaker: "A", text: "射击类的" },
+    { speaker: "B", text: "我主要听歌" },
+  ];
+  assert.deepEqual(gapsFromTranscript(t, "B").map((g) => g.quote), ["我平时打三角洲，你呢"]);
+  assert.equal(gapsFromTranscript(t, "A").length, 0);
+
+  // 代聊结果里带 gaps，最多 2 条，引用必须是对方说过的话
+  const me = buildCard({ state: validateState({ interests: [{ category: "music", entity: "薛之谦", level: 6, evidence: "在听薛之谦" }], lookingFor: "能一起玩的搭子" }, { userText: "在听薛之谦\n能一起玩的搭子", today }).state, confirmedAt: today, today });
+  const r = await matchWithAgents(llm, normalizePersona(me, { id: "me", name: "我" }), SAMPLE_POOL[3], { turns: 6 });
+  assert.ok(r.gaps && Array.isArray(r.gaps.A) && Array.isArray(r.gaps.B));
+  assert.ok(r.gaps.A.length <= 2 && r.gaps.B.length <= 2);
+  const bLines = r.transcript.filter((m) => m.speaker === "B").map((m) => m.text);
+  for (const g of r.gaps.A) assert.ok(bLines.some((x) => x.includes(g.quote)), "gap 的引用应是对方分身的原话");
+
+  // 补一句：新兴趣进卡，可见范围是匹配可见，卡仍是已确认
+  const { card, added } = await enrichCard(llm, me, { question: "你玩过塞尔达吗？", answer: "最近在玩原神，每天都玩", today });
+  assert.ok(card.state.interests.some((i) => i.entity === "原神"), `应加上原神：${JSON.stringify(card.state.interests)}`);
+  assert.ok(!card.state.interests.some((i) => /塞尔达/.test(i.entity || "")), "问题里的塞尔达不应被记成用户说过");
+  assert.ok(added.length >= 1);
+  assert.equal(card.confirmedAt, today, "补卡不应让卡变回未确认");
+  assert.ok(card.state.interests.filter((i) => i.entity === "原神").every((i) => i.disclosure === "match"));
+  // 原有的条目不丢
+  assert.ok(card.state.interests.some((i) => i.entity === "薛之谦"));
+
+  // 什么都没说出来时不加东西
+  const none = await enrichCard(llm, me, { question: "平时还玩什么？", answer: "没啥", today });
+  assert.equal(none.added.length, 0);
 });
 
 for (const r of results) console.log(`${r.ok ? "✓" : "✗"} ${r.name}${r.ok ? "" : `\n    ${r.error}`}`);

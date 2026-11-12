@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ModeBadge, TierBadge, UpgradeHint, STORE, loadSession } from "../components";
+import { ModeBadge, TierBadge, UpgradeHint, STORE, loadSession, saveSession } from "../components";
+import { GapAsk } from "../gap-ui";
 
 function ChatBubble({ message, humanMode, names }) {
   const isHuman = message.speaker === "ME";
@@ -43,6 +44,8 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [sent, setSent] = useState([]);
   const [notFound, setNotFound] = useState(false);
+  const [taught, setTaught] = useState(0); // 这一页里补了几句
+  const [rechat, setRechat] = useState(null); // {busy, error, before: {gaps, tier}}
 
   useEffect(() => {
     const data = loadSession(STORE.matches);
@@ -78,6 +81,58 @@ export default function ChatPage() {
     if (!draft.trim()) return;
     setSent((s) => [...s, { speaker: "ME", text: draft.trim() }]);
     setDraft("");
+  }
+
+  // 补一句：并进单人体验里的卡（只存在本次会话里）
+  async function teach(question, text) {
+    const saved = loadSession(STORE.persona);
+    if (!saved?.persona) throw new Error("找不到你的分身卡，回去重新生成一个");
+    const res = await fetch("/api/persona", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // 能走到这一页说明建卡时已经确认过年满 18 岁并同意分析说明
+      body: JSON.stringify({ mode: "gap", persona: saved.persona, question, text, consent: true, adult: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "没记上，稍后再试");
+    if (data.added?.length) {
+      const prev = saved.persona;
+      saveSession(STORE.persona, { ...saved, persona: data.persona });
+      setTaught((n) => n + 1);
+      return {
+        added: data.added,
+        undo: async () => {
+          saveSession(STORE.persona, { ...loadSession(STORE.persona), persona: prev });
+          setTaught((n) => Math.max(0, n - 1));
+        },
+      };
+    }
+    return { added: [] };
+  }
+
+  // 带着补过的卡，和同一位候选人再聊一次
+  async function chatAgain() {
+    const saved = loadSession(STORE.persona);
+    const before = { gaps: match.gaps?.length || 0, tier: match.tier };
+    setRechat({ busy: true, before });
+    try {
+      const res = await fetch("/api/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persona: saved.persona, candidateId: match.candidate.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "这次没聊成");
+      const all = loadSession(STORE.matches) || { matches: [] };
+      const matches = all.matches.map((m) => (m.candidate.id === data.match.candidate.id ? data.match : m)).sort((a, b) => b.score - a.score);
+      saveSession(STORE.matches, { ...all, mode: data.mode, me: data.me, matches });
+      setRechat({ busy: false, before, round: (rechat?.round || 1) + 1 });
+      setTaught(0);
+      setMatch(data.match);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      setRechat({ busy: false, before, error: e.message });
+    }
   }
 
   if (notFound) {
@@ -150,6 +205,12 @@ export default function ChatPage() {
                   <p className="rounded-xl bg-slate-100 px-3 py-2 text-[12px] text-slate-500">你用的是速通卡，对方会看到“TA 的分身信息较少”。</p>
                 )}
                 <ModeBadge mode={mode} />
+                {rechat?.round > 1 && !rechat.busy && (
+                  <div className="rounded-xl bg-emerald-50 px-3 py-2 text-[12px] leading-5 text-emerald-700">
+                    第 {rechat.round} 次代聊：分身带着你刚补的话重新聊了一遍。上次卡住 {rechat.before.gaps} 次，这次卡住 {match.gaps?.length || 0} 次
+                    {rechat.before.tier?.key !== match.tier?.key ? `；推荐从“${rechat.before.tier?.label}”变成“${match.tier?.label}”` : ""}。
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -171,6 +232,16 @@ export default function ChatPage() {
               <p className="text-center text-[12px] text-slate-400">演示版：消息不会真的发给对方</p>
             )}
           </div>
+
+          {!takeover && visibleCount >= match.transcript.length && (
+            <GapPanel
+              match={match}
+              taught={taught}
+              rechat={rechat}
+              onTeach={teach}
+              onRechat={chatAgain}
+            />
+          )}
         </section>
 
         <AnimatePresence mode="wait" initial={false}>
@@ -237,5 +308,67 @@ export default function ChatPage() {
         </AnimatePresence>
       </div>
     </motion.main>
+  );
+}
+
+/**
+ * 代聊播完后出现：分身被问住的地方 + 对方分身的悄悄话。
+ * 悄悄话（对方分身私下的评价）先模糊着，补一句才解开，给一点“想知道 TA 怎么看我”的期待。
+ */
+function GapPanel({ match, taught, rechat, onTeach, onRechat }) {
+  const gaps = match.gaps || [];
+  const whisper = match.selfReasons?.[1];
+  const [peek, setPeek] = useState(false);
+  const unlocked = taught > 0 || peek || !gaps.length;
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+      className="mt-8 space-y-3 rounded-[1.8rem] bg-slate-950 p-4 text-white shadow-[0_20px_50px_rgba(9,32,59,0.35)]"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-cyan-200/80">聊完之后</p>
+        <span className="text-[11px] text-cyan-100/50">只有你能看到</span>
+      </div>
+
+      {whisper && (
+        <div className="relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+          <p className="text-[12px] font-bold text-cyan-100/70">{match.candidate.name} 的分身私下说</p>
+          <p className={`mt-1 text-sm leading-6 transition-all duration-700 ${unlocked ? "" : "select-none blur-[6px]"}`}>「{whisper}」</p>
+          {!unlocked && (
+            <button type="button" onClick={() => setPeek(true)} className="absolute inset-0 flex items-center justify-center bg-slate-950/30 text-xs font-black text-[#ffd66b]">
+              🔒 帮你的分身补一句就能看到 · 或者直接偷看
+            </button>
+          )}
+        </div>
+      )}
+
+      {gaps.length > 0 ? (
+        <>
+          <div>
+            <h3 className="text-lg font-black leading-7">你的分身被问住了 {gaps.length} 次</h3>
+            <p className="text-[12px] leading-5 text-cyan-100/70">分身只知道你告诉过它的。替它补一句，下次再聊到就能接上，也会帮你配到更对路的人。</p>
+          </div>
+          {gaps.map((g) => (
+            <GapAsk key={`${match.candidate.id}-${g.quote}`} tone="dark" gap={g} otherName={match.candidate.name} onSubmit={(text) => onTeach(g.ask, text)} />
+          ))}
+        </>
+      ) : (
+        <p className="text-sm leading-6 text-cyan-50">这次你的分身没被问住。想让它更懂你，可以回去在卡上多补几句。</p>
+      )}
+
+      {taught > 0 && (
+        <button
+          type="button"
+          disabled={rechat?.busy}
+          onClick={onRechat}
+          className="w-full rounded-[1.4rem] bg-[#ffd66b] px-4 py-3 text-sm font-black text-slate-900 disabled:opacity-60"
+        >
+          {rechat?.busy ? "分身正在重新聊…（30 秒左右）" : `让分身带着新信息，和 ${match.candidate.name} 再聊一次`}
+        </button>
+      )}
+      {rechat?.error && <p className="text-xs text-rose-300">{rechat.error}</p>}
+    </motion.section>
   );
 }

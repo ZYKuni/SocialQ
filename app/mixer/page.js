@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { SAMPLE_POOL } from "@/lib/samplePool.mjs";
 import { ModeBadge, TierBadge, UpgradeHint, STORE, loadSession, saveSession } from "../components";
@@ -63,6 +64,7 @@ export default function MixerPage() {
   const [error, setError] = useState("");
   const [lines, setLines] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [revealed, setRevealed] = useState(false); // 结果先封着，点一下才揭晓是谁
   const [progress, setProgress] = useState(null); // {done, total}
   const [elapsed, setElapsed] = useState(0);
   const started = useRef(false);
@@ -76,6 +78,7 @@ export default function MixerPage() {
     setData(null);
     setFinished(false);
     setShowModal(false);
+    setRevealed(false);
     setProgress(null);
     setElapsed(0);
     setLines(["按兴趣重合度粗筛候选..."]);
@@ -235,7 +238,17 @@ export default function MixerPage() {
 
       {showModal && top && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/65 px-5 py-8 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[2rem] border border-white/20 bg-[linear-gradient(180deg,_rgba(18,164,255,0.96),_rgba(9,32,59,0.98))] p-5 text-white shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <AnimatePresence mode="wait" initial={false}>
+          {!revealed ? (
+            <SealedResult key="sealed" top={top} count={data.matches.length} onReveal={() => setRevealed(true)} onClose={() => setShowModal(false)} />
+          ) : (
+          <motion.div
+            key="revealed"
+            initial={{ opacity: 0, rotateY: -70, scale: 0.92 }}
+            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-sm rounded-[2rem] border border-white/20 bg-[linear-gradient(180deg,_rgba(18,164,255,0.96),_rgba(9,32,59,0.98))] p-5 text-white shadow-[0_30px_80px_rgba(0,0,0,0.45)]"
+          >
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-[0.32em] text-cyan-100/80">信号已锁定</p>
               <ModeBadge mode={data.mode} />
@@ -255,6 +268,12 @@ export default function MixerPage() {
                 <li key={r} className="text-cyan-100/70">△ {r}</li>
               ))}
             </ul>
+
+            {top.gaps?.length > 0 && (
+              <p className="mt-4 rounded-2xl bg-slate-950/30 px-3 py-2 text-[12px] leading-5 text-[#ffd66b]">
+                🔒 你的分身在聊天里被问住了 {top.gaps.length} 次。点进去替它补一句，还能看到 TA 的分身私下怎么说你。
+              </p>
+            )}
 
             <Link
               href={`/chat?id=${top.candidate.id}`}
@@ -291,9 +310,49 @@ export default function MixerPage() {
             <p className="mt-3 text-[11px] leading-5 text-cyan-100/60">
               不展示精确“契合度”：我们的验证实验显示，见面前的信息只能弱预测两人是否合得来。
             </p>
-          </div>
+          </motion.div>
+          )}
+          </AnimatePresence>
         </div>
       )}
     </main>
+  );
+}
+
+/** 揭晓前的封面：只透露聊了几句、卡住几次，不透露是谁。 */
+function SealedResult({ top, count, onReveal, onClose }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, rotateY: 70, scale: 0.92 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="w-full max-w-sm rounded-[2rem] border border-white/20 bg-[linear-gradient(160deg,_#09203b,_#12345c_55%,_#1d4a7a)] p-6 text-center text-white shadow-[0_30px_80px_rgba(0,0,0,0.45)]"
+    >
+      <p className="text-xs font-bold uppercase tracking-[0.32em] text-cyan-100/80">信号已锁定</p>
+      <div className="relative mx-auto mt-6 flex h-28 w-28 items-center justify-center">
+        <span className="absolute inset-0 animate-ping rounded-full bg-cyan-300/20" />
+        <span className="absolute inset-2 rounded-full border border-cyan-200/40" />
+        <span className="relative flex h-20 w-20 items-center justify-center rounded-[1.6rem] bg-white/10 text-4xl font-black text-cyan-50 backdrop-blur">?</span>
+      </div>
+      <h2 className="mt-6 text-2xl font-black leading-tight">有一位的分身，和你的分身聊得最久</h2>
+      <ul className="mx-auto mt-4 max-w-[16rem] space-y-1.5 text-left text-sm text-cyan-50/90">
+        <li>· 两个分身来回聊了 {top.transcript.length} 句</li>
+        {top.sharedInterests?.length > 0 && <li>· 你们有 {top.sharedInterests.length} 个共同兴趣</li>}
+        {top.gaps?.length > 0 && <li>· TA 问住了你的分身 {top.gaps.length} 次</li>}
+        {count > 1 && <li>· 另外还有 {count - 1} 位聊过</li>}
+      </ul>
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        type="button"
+        onClick={onReveal}
+        className="mt-6 w-full rounded-[1.5rem] bg-[#ffd66b] px-4 py-4 text-base font-black text-slate-900 shadow-lg"
+      >
+        揭晓 TA 是谁
+      </motion.button>
+      <button type="button" onClick={onClose} className="mt-3 text-xs text-cyan-100/60">
+        先不看
+      </button>
+    </motion.div>
   );
 }

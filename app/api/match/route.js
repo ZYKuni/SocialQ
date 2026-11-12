@@ -47,6 +47,7 @@ async function chatWith(llm, me, { c, overlap }) {
     risks: r.judge.risks,
     icebreakers: r.judge.icebreakers,
     selfReasons: [r.selfA.reason, r.selfB.reason],
+    gaps: r.gaps.A, // 我的分身答不上来的地方，单人体验里拿来演示“补一句”
     transcript: r.transcript,
   };
 }
